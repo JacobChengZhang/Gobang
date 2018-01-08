@@ -6,7 +6,7 @@ public class Pieces {
     private int[][] p;
 
     private Pieces() {
-        this.p = new int[Constants.order][Constants.order];
+        this.p = new int[Constants.getOrder()][Constants.getOrder()];
     }
 
     public static Pieces getInstance() {
@@ -30,12 +30,7 @@ public class Pieces {
         return p[x][y];
     }
 
-//    private void debugPrint() {
-//        for (int i = 0; i < Constants.order; i++) {
-//            for (int j = 0; j < Constants.order; j++) {
-//                System.out.print(p[j][i] + " ");
-//            }
-//            System.out.print("\n");
-//        }
-//    }
+    public void clearPieces() {
+        this.p = new int[Constants.getOrder()][Constants.getOrder()];
+    }
 }

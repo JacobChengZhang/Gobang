@@ -15,8 +15,8 @@ public class Rules {
     }
 
     public static boolean checkIfBlankExist() {
-        for (int x = 0; x < Constants.order; x++) {
-            for (int y = 0; y < Constants.order; y++) {
+        for (int x = 0; x < Constants.getOrder(); x++) {
+            for (int y = 0; y < Constants.getOrder(); y++) {
                 if (Pieces.getInstance().getPieceValue(x, y) == 0) {
                     return true;
                 }
@@ -33,7 +33,7 @@ public class Rules {
         for ( ; (lowX >= 1) && (Pieces.getInstance().getPieceValue(lowX - 1, pY) == Pieces.getInstance().getPieceValue(pX, pY)); lowX--) {
         }
 
-        for ( ; (highX < Constants.order - 1) && (Pieces.getInstance().getPieceValue(highX + 1, pY) == Pieces.getInstance().getPieceValue(pX, pY)); highX++) {
+        for ( ; (highX < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(highX + 1, pY) == Pieces.getInstance().getPieceValue(pX, pY)); highX++) {
         }
         if (highX - lowX >= 4) {
             return true;
@@ -48,7 +48,7 @@ public class Rules {
         for ( ; (lowY >= 1) && (Pieces.getInstance().getPieceValue(pX, lowY - 1) == Pieces.getInstance().getPieceValue(pX, pY)); lowY--) {
         }
 
-        for ( ; (highY < Constants.order - 1) && (Pieces.getInstance().getPieceValue(pX, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); highY++) {
+        for ( ; (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(pX, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); highY++) {
         }
         if (highY - lowY >= 4) {
             return true;
@@ -69,7 +69,7 @@ public class Rules {
         for ( ; (lowX >= 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(lowX - 1, lowY - 1) == Pieces.getInstance().getPieceValue(pX, pY)); lowX--, lowY--) {
         }
 
-        for (; (highX < Constants.order - 1) && (highY < Constants.order - 1) && (Pieces.getInstance().getPieceValue(highX + 1, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); highX++, highY++) {
+        for (; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(highX + 1, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); highX++, highY++) {
         }
         if (highX - lowX >= 4) {
             return true;
@@ -83,10 +83,10 @@ public class Rules {
         highX = pX;
         lowY = pY;
 
-        for ( ; (lowX >= 1) && (highY < Constants.order - 1) && (Pieces.getInstance().getPieceValue(lowX - 1, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); lowX--, highY++) {
+        for ( ; (lowX >= 1) && (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(lowX - 1, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); lowX--, highY++) {
         }
 
-        for ( ; (highX < Constants.order - 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(highX + 1, lowY - 1) == Pieces.getInstance().getPieceValue(pX, pY)); highX++, lowY--) {
+        for ( ; (highX < Constants.getOrder() - 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(highX + 1, lowY - 1) == Pieces.getInstance().getPieceValue(pX, pY)); highX++, lowY--) {
         }
         if (highX - lowX >= 4) {
             return true;
