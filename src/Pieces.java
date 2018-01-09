@@ -16,9 +16,9 @@ public class Pieces {
         return pieces;
     }
 
-    public boolean checkAndDraw(int x, int y, int color) {
-        if (p[x][y] == 0) {
-            p[x][y] = color;
+    public boolean checkAndDraw(PieceInfo pi) {
+        if (p[pi.getX()][pi.getY()] == 0) {
+            p[pi.getX()][pi.getY()] = pi.getColor();
             return true;
         }
         else {

@@ -1,10 +1,11 @@
-import com.sun.tools.internal.jxc.ap.Const;
+import java.util.Random;
 
-public class Rules {
+public class Referee {
+
     // 1: White wins   0: Continue to play   -1: Black wins   -100: Draw
-    public static int checkWinningCondition(int pX, int pY) {
-        if (checkHorizontallyAndVertically(pX, pY) || checkDiagonal(pX, pY)) {
-            return Pieces.getInstance().getPieceValue(pX, pY);
+    public static int checkWinningCondition(PieceInfo pi) {
+        if (checkHorizontallyAndVertically(pi.getX(), pi.getY()) || checkDiagonal(pi.getX(), pi.getY())) {
+            return pi.getColor();
         }
         else if (!checkIfBlankExist()) {
             return -100;

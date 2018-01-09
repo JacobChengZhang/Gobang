@@ -1,4 +1,6 @@
+import com.sun.xml.internal.xsom.impl.scd.Iterators;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
@@ -19,8 +21,10 @@ import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
 
-public class Gobang extends Application {
+import java.util.ArrayList;
+import java.util.Random;
 
+public class Gobang extends Application{
     private FlowPane root = null;
 
     private Pane paneBoard = null;
@@ -35,9 +39,12 @@ public class Gobang extends Application {
     private int paneBoardHeight = 0;
     private int paneButtonHeight = 0;
 
+    private AI ai1 = null;
+    private AI ai2 = null;
 
     // 1: white   -1:black
     private int color = 1;
+
 
     private void createPane() {
         this.root = new FlowPane();
@@ -58,25 +65,56 @@ public class Gobang extends Application {
                 if (!Constants.gameStarted) {
                     return;
                 }
-                if (checkMouseClick(me.getX(), me.getY())) {
-                    int seqX = calcPieceSeq(me.getX());
-                    int seqY = calcPieceSeq(me.getY());
-                    if (Pieces.getInstance().checkAndDraw(seqX, seqY, color)) {
-                        drawPiece(seqX, seqY, color);
+                else if (Constants.getMode() == Constants.Mode.AIvAI) {
+                    return;
+                }
+                else if (Constants.getMode() == Constants.Mode.PvAI) {
+                    if (checkMouseClick(me.getX(), me.getY())) {
+                        int seqX = calcPieceSeq(me.getX());
+                        int seqY = calcPieceSeq(me.getY());
+                        PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
+                        if (Pieces.getInstance().checkAndDraw(tempPi)) {
+                            drawPiece(tempPi);
 
-                        int checkResult = Rules.checkWinningCondition(seqX, seqY);
-                        if (checkResult != 0) {
-                            closeout(checkResult);
+                            int checkResult = Referee.checkWinningCondition(tempPi);
+                            if (checkResult != 0) {
+                                closeout(checkResult);
+                            }
+                            else {
+                                System.out.println("here");
+                                PieceInfo aiMove = ai1.nextMove();
+                                drawPiece(aiMove);
+                                checkResult = Referee.checkWinningCondition(aiMove);
+                                if (checkResult != 0) {
+                                    closeout(checkResult);
+                                }
+                            }
                         }
-                        else {
-                            switchColor();
-                        }
-
-
+                    }
+                    else {
+                        // do nothing
                     }
                 }
-                else {
-                    // do nothing
+                else { // Constants.Mode.PvP
+                    if (checkMouseClick(me.getX(), me.getY())) {
+                        int seqX = calcPieceSeq(me.getX());
+                        int seqY = calcPieceSeq(me.getY());
+                        PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
+                        if (Pieces.getInstance().checkAndDraw(tempPi)) {
+                            drawPiece(tempPi);
+
+                            int checkResult = Referee.checkWinningCondition(tempPi);
+                            if (checkResult != 0) {
+                                closeout(checkResult);
+                            }
+                            else {
+                                switchColor();
+                            }
+                        }
+                    }
+                    else {
+                        // do nothing
+                    }
                 }
             }
         });
@@ -98,6 +136,95 @@ public class Gobang extends Application {
         }
     }
 
+    private void swapAI(AI ai1, AI ai2) {
+        AI temp = ai1;
+        ai1 = ai2;
+        ai2 = temp;
+    }
+
+    private void start() {
+        Pieces.getInstance().clearPieces();
+        clearAndDrawBoard();
+        Constants.gameStarted = true;
+        sldSize.setDisable(true);
+        btnMode.setDisable(true);
+        lblTxt.setText("White Move");
+        btnStart.setText("End");
+
+        switch (Constants.getMode()) {
+            case PvAI: {
+                Random ran = new Random();
+                if (ran.nextInt(2) % 2 == 0) {
+                    ai1 = new AI(1);
+
+                    // When AI first(white), switch Human's color and let AI make one move first
+                    switchColor();
+                    PieceInfo aiMove = ai1.nextMove();
+                    drawPiece(aiMove);
+                    int checkResult = Referee.checkWinningCondition(aiMove);
+                    if (checkResult != 0) {
+                        closeout(checkResult);
+                    }
+                }
+                else {
+                    ai1 = new AI(-1);
+                }
+                break;
+            }
+            case PvP: {
+                break;
+            }
+            case AIvAI: {
+                // TODO under construction
+//                ai1 = new AI(1);
+//                ai2 = new AI(0);
+//
+//                while (true) {
+//                    PieceInfo tempPi;
+//                    do {
+//                        tempPi = ai1.nextMove();
+//                    } while (!Pieces.getInstance().checkAndDraw(tempPi));
+//
+//                    System.out.println(tempPi.getX() + " " + tempPi.getY() +  " " + tempPi.getColor());
+//
+//
+//                    drawPiece(tempPi);
+//
+//
+//                    System.out.println("here");
+//
+//                    int checkResult = Referee.checkWinningCondition(tempPi);
+//                    if (checkResult != 0) {
+//                        closeout(checkResult);
+//                    }
+//
+//                    try {
+//                        Thread.sleep(1000);
+//                    }
+//                    catch (Exception e) {
+//                        e.printStackTrace();
+//                    }
+//
+//                    swapAI(ai1, ai2);
+//                }
+            }
+            default: {
+                break;
+            }
+        }
+    }
+
+    private void end() {
+        Pieces.getInstance().clearPieces();
+        clearAndDrawBoard();
+        this.color = 1;
+        Constants.gameStarted = false;
+        sldSize.setDisable(false);
+        btnMode.setDisable(false);
+        lblTxt.setText("");
+        btnStart.setText("Start");
+    }
+
     private void addControlButton() {
         btnStart = new Button("Start");
         btnStart.setPrefSize(Constants.btnPaneHeight * 2, Constants.btnPaneHeight * 2 / 3);
@@ -105,25 +232,15 @@ public class Gobang extends Application {
             @Override
             public void handle(MouseEvent event) {
                 if (Constants.gameStarted) {
-                    Pieces.getInstance().clearPieces();
-                    clearAndDrawBoard();
-                    Constants.gameStarted = false;
-                    sldSize.setDisable(false);
-                    btnMode.setDisable(false);
-                    lblTxt.setText("");
-                    btnStart.setText("Start");
+                    end();
                 }
                 else {
-                    Constants.gameStarted = true;
-                    sldSize.setDisable(true);
-                    btnMode.setDisable(true);
-                    lblTxt.setText("White Move");
-                    btnStart.setText("End");
+                    start();
                 }
             }
         });
 
-        btnMode = new Button("PvAI");
+        btnMode = new Button(Constants.getMode().toString());
         btnMode.setPrefSize(Constants.btnPaneHeight * 2, Constants.btnPaneHeight * 2 / 3);
         btnMode.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
@@ -177,12 +294,12 @@ public class Gobang extends Application {
         paneButton.getChildren().add(hBox);
     }
 
-    private void drawPiece(int x, int y, int color) {
+    private void drawPiece(PieceInfo pi) {
         Circle p = new Circle();
-        p.setCenterX(Constants.getBorder() + x * Constants.increment);
-        p.setCenterY(Constants.getBorder() + y * Constants.increment);
+        p.setCenterX(Constants.getBorder() + pi.getX() * Constants.increment);
+        p.setCenterY(Constants.getBorder() + pi.getY() * Constants.increment);
         p.setRadius(Constants.pieceRadius);
-        if (this.color == 1) {
+        if (pi.getColor() == 1) {
             p.setFill(Color.WHITE);
         }
         else {
@@ -214,13 +331,15 @@ public class Gobang extends Application {
                 break;
             }
             default: {
-                lblTxt.setText("Caught a bug in Rules.");
+                lblTxt.setText("Caught a bug in Referee.");
                 break;
             }
         }
+        this.color = 1;
         Constants.gameStarted = false;
         btnStart.setText("Start");
         sldSize.setDisable(false);
+        btnMode.setDisable(false);
     }
 
     private Parent startGame() {
@@ -234,7 +353,7 @@ public class Gobang extends Application {
     }
 
     // A valid click should both satisfy (x, y coordinate close to gridPoint) and (the gridPoint has no piece on it)
-    private boolean checkMouseClick(double meX, double meY) {
+    public static boolean checkMouseClick(double meX, double meY) {
         boolean validX = false;
         boolean validY = false;
         int x = (int)(meX + 0.5);
@@ -251,7 +370,7 @@ public class Gobang extends Application {
     }
 
     // x or y coordinate -> sequence number in Pieces.p[][]
-    private int calcPieceSeq(double meC) {
+    public static int calcPieceSeq(double meC) {
         int c = (int)(meC + 0.5);
         if ((c - Constants.getBorder()) % Constants.increment < Constants.increment / 3) {
             return (c - Constants.getBorder()) / Constants.increment;
@@ -273,7 +392,8 @@ public class Gobang extends Application {
         }
     }
 
-    @Override public void start(Stage primaryStage) {
+    @Override
+    public void start(Stage primaryStage) {
         primaryStage.setTitle("Gobang");
         //primaryStage.setResizable(false);
         primaryStage.setScene(new Scene(startGame()));
