@@ -49,6 +49,18 @@ public class Gomoku extends Application{
     private int color = -1;
 
 
+    public static void main(String[] args) {
+        launch(args);
+    }
+
+    @Override
+    public void start(Stage primaryStage) {
+        primaryStage.setTitle("Gomoku");
+        primaryStage.setResizable(false);
+        primaryStage.setScene(new Scene(startGame()));
+        primaryStage.show();
+    }
+
     private void createPane() {
         this.root = new FlowPane();
         paneBoard = new Pane();
@@ -84,17 +96,6 @@ public class Gomoku extends Application{
         root.getChildren().add(paneButton);
     }
 
-    private void drawDot(PieceInfo pi) {
-        Circle dot = new Circle();
-        dot.setCenterX(calcPieceCoordinate(pi.getX()));
-        dot.setCenterY(calcPieceCoordinate(pi.getY()));
-        dot.setRadius(4);
-        dot.setFill(Color.BLACK);
-        dot.setStroke(Color.BLACK);
-
-        paneBoard.getChildren().add(dot);
-    }
-
     private void clearAndDrawBoard() {
         // clear board first
         Rectangle rectClear = new Rectangle(paneWidth, paneBoardHeight);
@@ -117,132 +118,6 @@ public class Gomoku extends Application{
         drawDot(new PieceInfo((Constants.getOrder() - 1) / 2, (Constants.getOrder() - 1) / 2, 0));
 
         // TODO draw number 1 ~ 15 and characters A ~ O (not necessary)
-    }
-
-    private void swapAI(AI ai1, AI ai2) {
-        AI temp = ai1;
-        ai1 = ai2;
-        ai2 = temp;
-    }
-
-    private void letAiMove() {
-        lblTxt.setText("AI1 (" + (ai1.getColor() == 1 ? "White" : "Black") + ") is moving");
-        PieceInfo aiMove = ai1.nextMove();
-        drawPiece(aiMove);
-        int checkResult = Referee.checkWinningCondition(aiMove);
-        if (checkResult != 0) {
-            finishGame(checkResult);
-        }
-        lblTxt.setText((ai1.getColor() == 1 ? "Black" : "White") + " Move");
-    }
-
-    private void letHumanMove(boolean nextIsAi, MouseEvent me) {
-        if (checkMouseClick(me.getX(), me.getY())) {
-            int seqX = calcPieceSeq(me.getX());
-            int seqY = calcPieceSeq(me.getY());
-            PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
-            if (Pieces.getInstance().checkAndSet(tempPi)) {
-                drawPiece(tempPi);
-
-                int checkResult = Referee.checkWinningCondition(tempPi);
-                if (checkResult != 0) {
-                    finishGame(checkResult);
-                }
-                else {
-                    if (nextIsAi) {
-                        letAiMove();
-                    }
-                    else{
-                        switchColor();
-                    }
-                }
-            }
-        }
-        else {
-            // do nothing
-        }
-    }
-
-    private void btnStartFunc() {
-        Pieces.getInstance().clearPieces();
-        clearAndDrawBoard();
-        Constants.gameStarted = true;
-        sldSize.setDisable(true);
-        btnMode.setDisable(true);
-        lblTxt.setText("Black Move");
-        btnStart.setText("End");
-
-        switch (Constants.getMode()) {
-            case PvAI: {
-                Random ran = new Random();
-                if (ran.nextInt(2) % 2 == 0) {
-                    ai1 = new AI(-1);
-
-                    // When AI first(white), switch Human's color and let AI make one move first
-                    switchColor();
-
-                    letAiMove();
-                }
-                else {
-                    ai1 = new AI(1);
-                }
-                break;
-            }
-            case PvP: {
-                break;
-            }
-            case AIvAI: {
-                // TODO under construction
-//                ai1 = new AI(1);
-//                ai2 = new AI(0);
-//
-//                while (true) {
-//                    PieceInfo tempPi;
-//                    do {
-//                        tempPi = ai1.nextMove();
-//                    } while (!Pieces.getInstance().checkAndSet(tempPi));
-//
-//                    System.out.println(tempPi.getX() + " " + tempPi.getY() +  " " + tempPi.getColor());
-//
-//
-//                    drawPiece(tempPi);
-//
-//
-//                    System.out.println("here");
-//
-//                    int checkResult = Referee.checkWinningCondition(tempPi);
-//                    if (checkResult != 0) {
-//                        finishGame(checkResult);
-//                    }
-//
-//                    try {
-//                        Thread.sleep(1000);
-//                    }
-//                    catch (Exception e) {
-//                        e.printStackTrace();
-//                    }
-//
-//                    swapAI(ai1, ai2);
-//                }
-            }
-            default: {
-                break;
-            }
-        }
-    }
-
-    private void btnEndFunc(boolean clearPieces) {
-        if (clearPieces) {
-            Pieces.getInstance().clearPieces();
-            clearAndDrawBoard();
-            lblTxt.setText("");
-        }
-
-        this.color = -1;
-        Constants.gameStarted = false;
-        sldSize.setDisable(false);
-        btnMode.setDisable(false);
-        btnStart.setText("Start");
     }
 
     private void addControlButton() {
@@ -312,6 +187,17 @@ public class Gomoku extends Application{
         hBox.setAlignment(Pos.CENTER_LEFT);
 
         paneButton.getChildren().add(hBox);
+    }
+
+    private void drawDot(PieceInfo pi) {
+        Circle dot = new Circle();
+        dot.setCenterX(calcPieceCoordinate(pi.getX()));
+        dot.setCenterY(calcPieceCoordinate(pi.getY()));
+        dot.setRadius(4);
+        dot.setFill(Color.BLACK);
+        dot.setStroke(Color.BLACK);
+
+        paneBoard.getChildren().add(dot);
     }
 
     private void drawPiece(PieceInfo pi) {
@@ -392,6 +278,88 @@ public class Gomoku extends Application{
         }
     }
 
+    private void btnStartFunc() {
+        Pieces.getInstance().clearPieces();
+        clearAndDrawBoard();
+        Constants.gameStarted = true;
+        sldSize.setDisable(true);
+        btnMode.setDisable(true);
+        lblTxt.setText("Black Move");
+        btnStart.setText("End");
+
+        switch (Constants.getMode()) {
+            case PvAI: {
+                Random ran = new Random();
+                if (ran.nextInt(2) % 2 == 0) {
+                    ai1 = new AI(-1);
+
+                    // When AI first(white), switch Human's color and let AI make one move first
+                    switchColor();
+
+                    letAiMove();
+                }
+                else {
+                    ai1 = new AI(1);
+                }
+                break;
+            }
+            case PvP: {
+                break;
+            }
+            case AIvAI: {
+                // TODO under construction
+//                ai1 = new AI(1);
+//                ai2 = new AI(0);
+//
+//                while (true) {
+//                    PieceInfo tempPi;
+//                    do {
+//                        tempPi = ai1.nextMove();
+//                    } while (!Pieces.getInstance().checkAndSet(tempPi));
+//
+//                    System.out.println(tempPi.getX() + " " + tempPi.getY() +  " " + tempPi.getColor());
+//
+//
+//                    drawPiece(tempPi);
+//
+//
+//                    System.out.println("here");
+//
+//                    int checkResult = Referee.checkWinningCondition(tempPi);
+//                    if (checkResult != 0) {
+//                        finishGame(checkResult);
+//                    }
+//
+//                    try {
+//                        Thread.sleep(1000);
+//                    }
+//                    catch (Exception e) {
+//                        e.printStackTrace();
+//                    }
+//
+//                    swapAI(ai1, ai2);
+//                }
+            }
+            default: {
+                break;
+            }
+        }
+    }
+    
+    private void btnEndFunc(boolean clearPieces) {
+        if (clearPieces) {
+            Pieces.getInstance().clearPieces();
+            clearAndDrawBoard();
+            lblTxt.setText("");
+        }
+
+        this.color = -1;
+        Constants.gameStarted = false;
+        sldSize.setDisable(false);
+        btnMode.setDisable(false);
+        btnStart.setText("Start");
+    }
+
     // A valid click should both satisfy (x, y coordinate close to gridPoint) and (the gridPoint has no piece on it)
     public static boolean checkMouseClick(double meX, double meY) {
         boolean validX = false;
@@ -424,7 +392,45 @@ public class Gomoku extends Application{
         return (double)(seq * Constants.increment + Constants.getBorder());
     }
 
-    // also means switch player
+    private void letAiMove() {
+        lblTxt.setText("AI1 (" + (ai1.getColor() == 1 ? "White" : "Black") + ") is moving");
+        PieceInfo aiMove = ai1.nextMove();
+        drawPiece(aiMove);
+        int checkResult = Referee.checkWinningCondition(aiMove);
+        if (checkResult != 0) {
+            finishGame(checkResult);
+        }
+        lblTxt.setText((ai1.getColor() == 1 ? "Black" : "White") + " Move");
+    }
+
+    private void letHumanMove(boolean nextIsAi, MouseEvent me) {
+        if (checkMouseClick(me.getX(), me.getY())) {
+            int seqX = calcPieceSeq(me.getX());
+            int seqY = calcPieceSeq(me.getY());
+            PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
+            if (Pieces.getInstance().checkAndSet(tempPi)) {
+                drawPiece(tempPi);
+
+                int checkResult = Referee.checkWinningCondition(tempPi);
+                if (checkResult != 0) {
+                    finishGame(checkResult);
+                }
+                else {
+                    if (nextIsAi) {
+                        letAiMove();
+                    }
+                    else{
+                        switchColor();
+                    }
+                }
+            }
+        }
+        else {
+            // do nothing
+        }
+    }
+
+    // swap human player
     private void switchColor() {
         this.color = -this.color;
 
@@ -436,15 +442,9 @@ public class Gomoku extends Application{
         }
     }
 
-    @Override
-    public void start(Stage primaryStage) {
-        primaryStage.setTitle("Gomoku");
-        primaryStage.setResizable(false);
-        primaryStage.setScene(new Scene(startGame()));
-        primaryStage.show();
-    }
-
-    public static void main(String[] args) {
-        launch(args);
+    private void swapAI(AI ai1, AI ai2) {
+        AI temp = ai1;
+        ai1 = ai2;
+        ai2 = temp;
     }
 }
