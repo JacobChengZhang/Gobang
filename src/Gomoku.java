@@ -72,51 +72,10 @@ public class Gomoku extends Application{
                     return;
                 }
                 else if (Constants.getMode() == Constants.Mode.PvAI) {
-                    if (checkMouseClick(me.getX(), me.getY())) {
-                        int seqX = calcPieceSeq(me.getX());
-                        int seqY = calcPieceSeq(me.getY());
-                        PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
-                        if (Pieces.getInstance().checkAndSet(tempPi)) {
-                            drawPiece(tempPi);
-
-                            int checkResult = Referee.checkWinningCondition(tempPi);
-                            if (checkResult != 0) {
-                                finishGame(checkResult);
-                            }
-                            else {
-                                PieceInfo aiMove = ai1.nextMove();
-                                drawPiece(aiMove);
-                                checkResult = Referee.checkWinningCondition(aiMove);
-                                if (checkResult != 0) {
-                                    finishGame(checkResult);
-                                }
-                            }
-                        }
-                    }
-                    else {
-                        // do nothing
-                    }
+                    letHumanMove(true, me);
                 }
                 else { // Constants.Mode.PvP
-                    if (checkMouseClick(me.getX(), me.getY())) {
-                        int seqX = calcPieceSeq(me.getX());
-                        int seqY = calcPieceSeq(me.getY());
-                        PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
-                        if (Pieces.getInstance().checkAndSet(tempPi)) {
-                            drawPiece(tempPi);
-
-                            int checkResult = Referee.checkWinningCondition(tempPi);
-                            if (checkResult != 0) {
-                                finishGame(checkResult);
-                            }
-                            else {
-                                switchColor();
-                            }
-                        }
-                    }
-                    else {
-                        // do nothing
-                    }
+                    letHumanMove(false, me);
                 }
             }
         });
@@ -125,17 +84,39 @@ public class Gomoku extends Application{
         root.getChildren().add(paneButton);
     }
 
+    private void drawDot(PieceInfo pi) {
+        Circle dot = new Circle();
+        dot.setCenterX(calcPieceCoordinate(pi.getX()));
+        dot.setCenterY(calcPieceCoordinate(pi.getY()));
+        dot.setRadius(4);
+        dot.setFill(Color.BLACK);
+        dot.setStroke(Color.BLACK);
+
+        paneBoard.getChildren().add(dot);
+    }
+
     private void clearAndDrawBoard() {
+        // clear board first
         Rectangle rectClear = new Rectangle(paneWidth, paneBoardHeight);
         rectClear.setFill(Color.WHITE);
         paneBoard.getChildren().add(rectClear);
 
+        // draw lines
         for (int i = 0; i < Constants.getOrder(); i++) {
-            Line lineX = new Line(Constants.getBorder(), Constants.getBorder() + i * Constants.increment, paneWidth - Constants.getBorder(), Constants.getBorder() + i * Constants.increment);
-            Line lineY = new Line(Constants.getBorder() + i * Constants.increment, Constants.getBorder(), Constants.getBorder() + i * Constants.increment, paneBoardHeight - Constants.getBorder());
+            Line lineX = new Line(Constants.getBorder(), calcPieceCoordinate(i), paneWidth - Constants.getBorder(), calcPieceCoordinate(i));
+            Line lineY = new Line(calcPieceCoordinate(i), Constants.getBorder(), calcPieceCoordinate(i), paneBoardHeight - Constants.getBorder());
             paneBoard.getChildren().add(lineX);
             paneBoard.getChildren().add(lineY);
         }
+
+        // draw five dots
+        drawDot(new PieceInfo(3, 3, 0));
+        drawDot(new PieceInfo(3, Constants.getOrder() - 4, 0));
+        drawDot(new PieceInfo(Constants.getOrder() - 4, 3, 0));
+        drawDot(new PieceInfo(Constants.getOrder() - 4, Constants.getOrder() - 4, 0));
+        drawDot(new PieceInfo((Constants.getOrder() - 1) / 2, (Constants.getOrder() - 1) / 2, 0));
+
+        // TODO draw number 1 ~ 15 and characters A ~ O (not necessary)
     }
 
     private void swapAI(AI ai1, AI ai2) {
@@ -144,13 +125,51 @@ public class Gomoku extends Application{
         ai2 = temp;
     }
 
+    private void letAiMove() {
+        lblTxt.setText("AI1 (" + (ai1.getColor() == 1 ? "White" : "Black") + ") is moving");
+        PieceInfo aiMove = ai1.nextMove();
+        drawPiece(aiMove);
+        int checkResult = Referee.checkWinningCondition(aiMove);
+        if (checkResult != 0) {
+            finishGame(checkResult);
+        }
+        lblTxt.setText((ai1.getColor() == 1 ? "Black" : "White") + " Move");
+    }
+
+    private void letHumanMove(boolean nextIsAi, MouseEvent me) {
+        if (checkMouseClick(me.getX(), me.getY())) {
+            int seqX = calcPieceSeq(me.getX());
+            int seqY = calcPieceSeq(me.getY());
+            PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
+            if (Pieces.getInstance().checkAndSet(tempPi)) {
+                drawPiece(tempPi);
+
+                int checkResult = Referee.checkWinningCondition(tempPi);
+                if (checkResult != 0) {
+                    finishGame(checkResult);
+                }
+                else {
+                    if (nextIsAi) {
+                        letAiMove();
+                    }
+                    else{
+                        switchColor();
+                    }
+                }
+            }
+        }
+        else {
+            // do nothing
+        }
+    }
+
     private void btnStartFunc() {
         Pieces.getInstance().clearPieces();
         clearAndDrawBoard();
         Constants.gameStarted = true;
         sldSize.setDisable(true);
         btnMode.setDisable(true);
-        lblTxt.setText("White Move");
+        lblTxt.setText("Black Move");
         btnStart.setText("End");
 
         switch (Constants.getMode()) {
@@ -161,12 +180,8 @@ public class Gomoku extends Application{
 
                     // When AI first(white), switch Human's color and let AI make one move first
                     switchColor();
-                    PieceInfo aiMove = ai1.nextMove();
-                    drawPiece(aiMove);
-                    int checkResult = Referee.checkWinningCondition(aiMove);
-                    if (checkResult != 0) {
-                        finishGame(checkResult);
-                    }
+
+                    letAiMove();
                 }
                 else {
                     ai1 = new AI(1);
@@ -279,7 +294,7 @@ public class Gomoku extends Application{
         sldSize.valueProperty().addListener(new ChangeListener<Number>() {
             public void changed(ObservableValue<? extends Number> ov,
                                 Number old_val, Number new_val) {
-                if (new_val.intValue() != Constants.getOrder()) {
+                if ((new_val.intValue() != Constants.getOrder()) && (new_val.intValue() % 2 != 0)) {
                     Constants.setOrder(new_val.intValue());
                     clearAndDrawBoard();
                     lblSize.setText("Size: " + new_val.intValue());
@@ -301,8 +316,8 @@ public class Gomoku extends Application{
 
     private void drawPiece(PieceInfo pi) {
         Circle p = new Circle();
-        p.setCenterX(Constants.getBorder() + pi.getX() * Constants.increment);
-        p.setCenterY(Constants.getBorder() + pi.getY() * Constants.increment);
+        p.setCenterX(calcPieceCoordinate(pi.getX()));
+        p.setCenterY(calcPieceCoordinate(pi.getY()));
         p.setRadius(Constants.pieceRadius);
         if (pi.getColor() == 1) {
             p.setFill(Color.WHITE);
@@ -330,11 +345,11 @@ public class Gomoku extends Application{
 
         switch (result) {
             case 1: {
-                lblTxt.setText("White wins!");
+                lblTxt.setText("White win!");
                 break;
             }
             case -1: {
-                lblTxt.setText("Black wins!");
+                lblTxt.setText("Black win!");
                 break;
             }
             case -100: {

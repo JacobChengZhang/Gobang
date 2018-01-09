@@ -25,12 +25,11 @@ public class Constants {
     }
     public static void setOrder(int i) {
         if (!gameStarted) {
-            if (i >= minOrder && i <= maxOrder) {
+            if (i >= minOrder && i <= maxOrder && i % 2 != 0) {
                 // first, adjust border correspondingly
                 border += ((order - i) * increment / 2);
                 // change border
                 order = i;
-                System.out.println("Size: " + order);
             }
         }
     }

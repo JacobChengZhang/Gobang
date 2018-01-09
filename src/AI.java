@@ -1,6 +1,10 @@
 public class AI{ // TODO
     private int color;
 
+    public int getColor() {
+        return color;
+    }
+
     public PieceInfo nextMove() {
         for (int i = 0; i < Constants.getOrder(); i++) {
             for (int j = 0; j < Constants.getOrder(); j++) {
