@@ -4,7 +4,7 @@ public class Constants {
     public enum  Mode{
         PvP, PvAI, AIvAI,
     }
-    private static Mode mode = Mode.PvP;
+    private static Mode mode = Mode.PvAI;
     public static Mode getMode() {
         return mode;
     }

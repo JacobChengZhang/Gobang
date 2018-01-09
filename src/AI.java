@@ -6,7 +6,7 @@ public class AI{
             for (int j = 0; j < Constants.getOrder(); j++) {
                 if (Pieces.getInstance().getPieceValue(i, j) == 0) {
                     PieceInfo pi = new PieceInfo(i, j, color);
-                    Pieces.getInstance().checkAndDraw(pi);
+                    Pieces.getInstance().checkAndSet(pi);
                     return pi;
                 }
             }

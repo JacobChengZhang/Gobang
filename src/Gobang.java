@@ -1,6 +1,4 @@
-import com.sun.xml.internal.xsom.impl.scd.Iterators;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
@@ -19,10 +17,14 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 
-import java.util.ArrayList;
 import java.util.Random;
+
+import static com.sun.javafx.font.LogicalFont.STYLE_BOLD;
 
 public class Gobang extends Application{
     private FlowPane root = null;
@@ -73,20 +75,19 @@ public class Gobang extends Application{
                         int seqX = calcPieceSeq(me.getX());
                         int seqY = calcPieceSeq(me.getY());
                         PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
-                        if (Pieces.getInstance().checkAndDraw(tempPi)) {
+                        if (Pieces.getInstance().checkAndSet(tempPi)) {
                             drawPiece(tempPi);
 
                             int checkResult = Referee.checkWinningCondition(tempPi);
                             if (checkResult != 0) {
-                                closeout(checkResult);
+                                finishGame(checkResult);
                             }
                             else {
-                                System.out.println("here");
                                 PieceInfo aiMove = ai1.nextMove();
                                 drawPiece(aiMove);
                                 checkResult = Referee.checkWinningCondition(aiMove);
                                 if (checkResult != 0) {
-                                    closeout(checkResult);
+                                    finishGame(checkResult);
                                 }
                             }
                         }
@@ -100,12 +101,12 @@ public class Gobang extends Application{
                         int seqX = calcPieceSeq(me.getX());
                         int seqY = calcPieceSeq(me.getY());
                         PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
-                        if (Pieces.getInstance().checkAndDraw(tempPi)) {
+                        if (Pieces.getInstance().checkAndSet(tempPi)) {
                             drawPiece(tempPi);
 
                             int checkResult = Referee.checkWinningCondition(tempPi);
                             if (checkResult != 0) {
-                                closeout(checkResult);
+                                finishGame(checkResult);
                             }
                             else {
                                 switchColor();
@@ -142,7 +143,7 @@ public class Gobang extends Application{
         ai2 = temp;
     }
 
-    private void start() {
+    private void btnStartFunc() {
         Pieces.getInstance().clearPieces();
         clearAndDrawBoard();
         Constants.gameStarted = true;
@@ -163,7 +164,7 @@ public class Gobang extends Application{
                     drawPiece(aiMove);
                     int checkResult = Referee.checkWinningCondition(aiMove);
                     if (checkResult != 0) {
-                        closeout(checkResult);
+                        finishGame(checkResult);
                     }
                 }
                 else {
@@ -183,7 +184,7 @@ public class Gobang extends Application{
 //                    PieceInfo tempPi;
 //                    do {
 //                        tempPi = ai1.nextMove();
-//                    } while (!Pieces.getInstance().checkAndDraw(tempPi));
+//                    } while (!Pieces.getInstance().checkAndSet(tempPi));
 //
 //                    System.out.println(tempPi.getX() + " " + tempPi.getY() +  " " + tempPi.getColor());
 //
@@ -195,7 +196,7 @@ public class Gobang extends Application{
 //
 //                    int checkResult = Referee.checkWinningCondition(tempPi);
 //                    if (checkResult != 0) {
-//                        closeout(checkResult);
+//                        finishGame(checkResult);
 //                    }
 //
 //                    try {
@@ -214,14 +215,17 @@ public class Gobang extends Application{
         }
     }
 
-    private void end() {
-        Pieces.getInstance().clearPieces();
-        clearAndDrawBoard();
+    private void btnEndFunc(boolean clearPieces) {
+        if (clearPieces) {
+            Pieces.getInstance().clearPieces();
+            clearAndDrawBoard();
+            lblTxt.setText("");
+        }
+
         this.color = 1;
         Constants.gameStarted = false;
         sldSize.setDisable(false);
         btnMode.setDisable(false);
-        lblTxt.setText("");
         btnStart.setText("Start");
     }
 
@@ -232,10 +236,10 @@ public class Gobang extends Application{
             @Override
             public void handle(MouseEvent event) {
                 if (Constants.gameStarted) {
-                    end();
+                    btnEndFunc(true);
                 }
                 else {
-                    start();
+                    btnStartFunc();
                 }
             }
         });
@@ -310,12 +314,18 @@ public class Gobang extends Application{
         paneBoard.getChildren().add(p);
     }
 
-    private void playWinningAnimation() {
-        //TODO
+    private Parent startGame() {
+        createPane();
+
+        clearAndDrawBoard();
+
+        addControlButton();
+
+        return root;
     }
 
-    private void closeout(int result) {
-        playWinningAnimation();
+    private void finishGame(int result) {
+        playWinningAnimation(result);
 
         switch (result) {
             case 1: {
@@ -332,24 +342,38 @@ public class Gobang extends Application{
             }
             default: {
                 lblTxt.setText("Caught a bug in Referee.");
+                System.out.println("Caught a bug in Referee.");
+                System.exit(1);
                 break;
             }
         }
-        this.color = 1;
-        Constants.gameStarted = false;
-        btnStart.setText("Start");
-        sldSize.setDisable(false);
-        btnMode.setDisable(false);
+
+        btnEndFunc(false);
     }
 
-    private Parent startGame() {
-        createPane();
-
-        clearAndDrawBoard();
-
-        addControlButton();
-
-        return root;
+    private void playWinningAnimation(int result) {
+        //TODO turn static Text into really animation...
+        if (result == -100) { // draw
+            Text txt = new Text(paneWidth / 3, paneBoardHeight / 2, "Draw!");
+            txt.setFill(Color.RED);
+            txt.setFont(new Font("Courier", 100));
+            txt.setTextAlignment(TextAlignment.CENTER);
+            paneBoard.getChildren().add(txt);
+        }
+        else {
+            PieceInfo pi1 = Pieces.getInstance().getWinningPieceInfo(1);
+            PieceInfo pi2 = Pieces.getInstance().getWinningPieceInfo(2);
+            if (pi1 != null && pi2 != null) {
+                Line winningLine = new Line(calcPieceCoordinate(pi1.getX()), calcPieceCoordinate(pi1.getY()), calcPieceCoordinate(pi2.getX()), calcPieceCoordinate(pi2.getY()));
+                winningLine.setStroke(Color.RED);
+                winningLine.setStrokeWidth(5);
+                paneBoard.getChildren().add(winningLine);
+            }
+            else { // due to unknown bugs, failed to fetch winning PieceInfo
+                System.out.println("Caught a bug and failed to fetch winning PieceInfo");
+                System.exit(1);
+            }
+        }
     }
 
     // A valid click should both satisfy (x, y coordinate close to gridPoint) and (the gridPoint has no piece on it)
@@ -378,6 +402,10 @@ public class Gobang extends Application{
         else {
             return ((c - Constants.getBorder()) / Constants.increment) + 1;
         }
+    }
+
+    public static double calcPieceCoordinate(int seq) {
+        return (double)(seq * Constants.increment + Constants.getBorder());
     }
 
     // also means switch player
