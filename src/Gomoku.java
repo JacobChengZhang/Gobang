@@ -35,6 +35,7 @@ public class Gomoku extends Application{
     private Button btnStart = null;
     private Button btnMode = null;
     private Slider sldSize = null;
+    private Label lblSize = null;
     private Label lblTxt = null;
 
     private int paneWidth = 0;
@@ -44,8 +45,8 @@ public class Gomoku extends Application{
     private AI ai1 = null;
     private AI ai2 = null;
 
-    // 1: white   -1:black
-    private int color = 1;
+    // -1:black    1: white
+    private int color = -1;
 
 
     private void createPane() {
@@ -53,9 +54,9 @@ public class Gomoku extends Application{
         paneBoard = new Pane();
         paneButton = new Pane();
 
-        // paneWidth: |<-   border  ->|<-   ((order - 1) * increment)   ->|<-   border   ->|   (Y is the same)
-        paneWidth = Constants.getBorder() * 2 + (Constants.getOrder() - 1) * Constants.increment;
-        paneBoardHeight = Constants.getBorder() * 2 + (Constants.getOrder() - 1) * Constants.increment;
+        // paneWidth: |<-   minBorder  ->|<-   ((maxOrder - 1) * increment)   ->|<-   minBorder   ->|   (Y is the same)
+        paneWidth = Constants.minBorder * 2 + (Constants.maxOrder - 1) * Constants.increment;
+        paneBoardHeight = Constants.minBorder * 2 + (Constants.maxOrder - 1) * Constants.increment;
         paneButtonHeight = Constants.btnPaneHeight;
 
         root.setPrefSize(paneWidth, paneBoardHeight + paneButtonHeight);
@@ -156,7 +157,7 @@ public class Gomoku extends Application{
             case PvAI: {
                 Random ran = new Random();
                 if (ran.nextInt(2) % 2 == 0) {
-                    ai1 = new AI(1);
+                    ai1 = new AI(-1);
 
                     // When AI first(white), switch Human's color and let AI make one move first
                     switchColor();
@@ -168,7 +169,7 @@ public class Gomoku extends Application{
                     }
                 }
                 else {
-                    ai1 = new AI(-1);
+                    ai1 = new AI(1);
                 }
                 break;
             }
@@ -222,7 +223,7 @@ public class Gomoku extends Application{
             lblTxt.setText("");
         }
 
-        this.color = 1;
+        this.color = -1;
         Constants.gameStarted = false;
         sldSize.setDisable(false);
         btnMode.setDisable(false);
@@ -272,16 +273,16 @@ public class Gomoku extends Application{
             }
         });
 
-        final Label lblSize = new Label("Size:");
+        lblSize = new Label("Size: " + Constants.getOrder());
 
-        sldSize = new Slider(11, 19, 19);
+        sldSize = new Slider(Constants.minOrder, Constants.maxOrder, Constants.getOrder());
         sldSize.valueProperty().addListener(new ChangeListener<Number>() {
             public void changed(ObservableValue<? extends Number> ov,
                                 Number old_val, Number new_val) {
                 if (new_val.intValue() != Constants.getOrder()) {
                     Constants.setOrder(new_val.intValue());
                     clearAndDrawBoard();
-                    lblTxt.setText("Size: " + new_val.intValue());
+                    lblSize.setText("Size: " + new_val.intValue());
                 }
             }
         });
@@ -423,7 +424,7 @@ public class Gomoku extends Application{
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Gomoku");
-        //primaryStage.setResizable(false);
+        primaryStage.setResizable(false);
         primaryStage.setScene(new Scene(startGame()));
         primaryStage.show();
     }

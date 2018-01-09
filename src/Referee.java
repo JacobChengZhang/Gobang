@@ -1,7 +1,6 @@
 import java.util.Random;
 
 public class Referee {
-
     // 1: White wins   0: Continue to play   -1: Black wins   -100: Draw
     public static int checkWinningCondition(PieceInfo pi) {
         if (checkHorizontallyAndVertically(pi) || checkDiagonal(pi)) {
@@ -109,3 +108,8 @@ public class Referee {
         return false;
     }
 }
+
+
+// TODO passable
+
+// TODO add ban rules support

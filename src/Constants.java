@@ -14,13 +14,18 @@ public class Constants {
         }
     }
 
-    private static int order = 19; // better between 11~19
+    // TODO add differents ban rules
+    private static boolean bans;
+
+    public static final int minOrder = 11;
+    public static final int maxOrder = 19;
+    private static int order = 15; // better between 11~19
     public static int getOrder() {
         return order;
     }
     public static void setOrder(int i) {
         if (!gameStarted) {
-            if (i <= 19 && i >= 11) {
+            if (i >= minOrder && i <= maxOrder) {
                 // first, adjust border correspondingly
                 border += ((order - i) * increment / 2);
                 // change border
@@ -30,7 +35,8 @@ public class Constants {
         }
     }
 
-    private static int border = 25;
+    public static final int minBorder = 25;
+    private static int border = 101;
     public static int getBorder() {
         return border;
     }
