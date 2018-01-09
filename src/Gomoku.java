@@ -26,7 +26,7 @@ import java.util.Random;
 
 import static com.sun.javafx.font.LogicalFont.STYLE_BOLD;
 
-public class Gobang extends Application{
+public class Gomoku extends Application{
     private FlowPane root = null;
 
     private Pane paneBoard = null;
@@ -286,7 +286,7 @@ public class Gobang extends Application{
             }
         });
 
-        lblTxt = new Label("Gobang " + Constants.version + ". Hope you enjoy!\n(Developed by JacobChengZhang)");
+        lblTxt = new Label("Gomoku " + Constants.version + ". Hope you enjoy!\n(Developed by JacobChengZhang)");
 
         HBox hBox = new HBox();
         hBox.setPrefSize(paneWidth, paneButtonHeight);
@@ -422,7 +422,7 @@ public class Gobang extends Application{
 
     @Override
     public void start(Stage primaryStage) {
-        primaryStage.setTitle("Gobang");
+        primaryStage.setTitle("Gomoku");
         //primaryStage.setResizable(false);
         primaryStage.setScene(new Scene(startGame()));
         primaryStage.show();

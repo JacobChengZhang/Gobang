@@ -1,4 +1,4 @@
-public class AI{
+public class AI{ // TODO
     private int color;
 
     public PieceInfo nextMove() {

@@ -1,3 +1,3 @@
-# Gobang
+# Gomoku
 
-Gobang implemented by Java using JavaFX.
+Gomoku implemented by Java using JavaFX.
