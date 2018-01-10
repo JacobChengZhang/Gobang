@@ -1,4 +1,6 @@
-public class Pieces {
+package Gomoku;
+
+public class Pieces implements QueryPieces{
     private static Pieces pieces = null;
 
     // store pieces in this two dimension array
@@ -19,8 +21,18 @@ public class Pieces {
         return pieces;
     }
 
-    public boolean checkAndSet(PieceInfo pi) {
-        if (p[pi.getX()][pi.getY()] == 0) {
+    @Override
+    public boolean checkPieceValidity(PieceInfo pi) {
+        return (p[pi.getX()][pi.getY()] == 0);
+    }
+
+    @Override
+    public int getPieceValue(int x, int y) {
+        return p[x][y];
+    }
+
+    boolean setPieceValue(PieceInfo pi) {
+        if (checkPieceValidity(pi)) {
             p[pi.getX()][pi.getY()] = pi.getColor();
             return true;
         }
@@ -29,16 +41,12 @@ public class Pieces {
         }
     }
 
-    public int getPieceValue(int x, int y) {
-        return p[x][y];
-    }
-
-    public void setWinningPieceInfo(PieceInfo pi1, PieceInfo pi2) {
+    void setWinningPieceInfo(PieceInfo pi1, PieceInfo pi2) {
         winningPi1 = pi1;
         winningPi2 = pi2;
     }
 
-    public PieceInfo getWinningPieceInfo(int index) {
+    PieceInfo getWinningPieceInfo(int index) {
         if (index == 1) {
             return winningPi1;
         }
@@ -50,7 +58,7 @@ public class Pieces {
         }
     }
 
-    public void clearPieces() {
+    void clearPieces() {
         this.p = new int[Constants.getOrder()][Constants.getOrder()];
         winningPi1 = null;
         winningPi2 = null;

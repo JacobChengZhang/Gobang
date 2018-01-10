@@ -1,4 +1,4 @@
-import java.util.Random;
+package Gomoku;
 
 public class Referee {
     // 1: White wins   0: Continue to play   -1: Black wins   -100: Draw
@@ -14,6 +14,7 @@ public class Referee {
         }
     }
 
+    //TODO to be redesigned
     public static boolean checkIfBlankExist() {
         for (int x = 0; x < Constants.getOrder(); x++) {
             for (int y = 0; y < Constants.getOrder(); y++) {

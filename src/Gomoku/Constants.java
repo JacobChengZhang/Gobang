@@ -1,5 +1,10 @@
+package Gomoku;
+
 public class Constants {
-    public static boolean gameStarted = false;
+    static boolean gameStarted = false;
+
+    // TODO add differents ban rules
+    private static boolean bans;
 
     public enum  Mode{
         PvP, PvAI, AIvAI,
@@ -8,22 +13,19 @@ public class Constants {
     public static Mode getMode() {
         return mode;
     }
-    public static void setMode(Mode m) {
+    static void setMode(Mode m) {
         if (!gameStarted) {
             mode = m;
         }
     }
 
-    // TODO add differents ban rules
-    private static boolean bans;
-
-    public static final int minOrder = 11;
-    public static final int maxOrder = 19;
+    static final int minOrder = 11;
+    static final int maxOrder = 19;
     private static int order = 15; // better between 11~19
     public static int getOrder() {
         return order;
     }
-    public static void setOrder(int i) {
+    static void setOrder(int i) {
         if (!gameStarted) {
             if (i >= minOrder && i <= maxOrder && i % 2 != 0) {
                 // first, adjust border correspondingly
@@ -34,15 +36,18 @@ public class Constants {
         }
     }
 
-    public static final int minBorder = 25;
-    private static int border = 101;
-    public static int getBorder() {
+    static final int minBorder = 25;
+    private static int border = 101; // border when order = 15
+    static int getBorder() {
         return border;
     }
 
-    public final static int btnPaneHeight = 35;
-    public final static int increment = 38;
-    public final static double pieceRadius = 16f;
+    final static int increment = 38;
+    final static int btnPaneHeight = 35;
+    final static double pieceRadius = 16f;
+    final static double lineWidth = 1f;
+    final static double dotRadius = 4f;
+
 
     public final static String version = "1.1";
 }
