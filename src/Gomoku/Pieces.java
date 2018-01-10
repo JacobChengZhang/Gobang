@@ -14,7 +14,7 @@ public class Pieces implements QueryPieces{
         this.p = new int[Constants.getOrder()][Constants.getOrder()];
     }
 
-    public static Pieces getInstance() {
+    static Pieces getInstance() {
         if (pieces == null) {
             pieces = new Pieces();
         }
@@ -22,8 +22,8 @@ public class Pieces implements QueryPieces{
     }
 
     @Override
-    public boolean checkPieceValidity(PieceInfo pi) {
-        return (p[pi.getX()][pi.getY()] == 0);
+    public boolean checkPieceValidity(int x, int y) {
+        return (x >= 0 && x < Constants.getOrder() && y >= 0 && y < Constants.getOrder() && p[x][y] == 0);
     }
 
     @Override
@@ -32,7 +32,7 @@ public class Pieces implements QueryPieces{
     }
 
     boolean setPieceValue(PieceInfo pi) {
-        if (checkPieceValidity(pi)) {
+        if (checkPieceValidity(pi.getX(), pi.getY())) {
             p[pi.getX()][pi.getY()] = pi.getColor();
             return true;
         }

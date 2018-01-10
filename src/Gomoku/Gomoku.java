@@ -50,6 +50,9 @@ public class Gomoku extends Application{
     // -1:black    1: white
     private int color = -1;
 
+    // max number of failed attempts that AI can make
+    private static final int maxAttempts = 10;
+
 
     public static void main(String[] args) {
         launch(args);
@@ -242,20 +245,74 @@ public class Gomoku extends Application{
         return root;
     }
 
+    /**
+     * As for result
+     * 1    -> White wins
+     * 2    -> Black give up, White wins
+     * -1   -> Black wins
+     * -2   -> White give up, Black wins
+     * -100 -> Draw game
+     *
+     * @param result
+     */
     private void finishGame(int result) {
         playWinningAnimation(result);
 
+        String playerWhite = null;
+        String playerBlack = null;
+
+        switch (Constants.getMode()) {
+            case PvAI: {
+                if (ai1.getColor() == 1) {
+                    playerWhite = ai1.toString();
+                    playerBlack = "Human";
+                }
+                else {
+                    playerWhite = "Human";
+                    playerBlack = ai1.toString();
+                }
+                break;
+            }
+            case PvP: {
+                playerWhite = "Human";
+                playerBlack = "Human";
+                break;
+            }
+            case AIvAI: {
+                if (ai1.getColor() == 1) {
+                    playerWhite = ai1.toString();
+                    playerBlack = ai2.toString();
+                }
+                else {
+                    playerWhite = ai2.toString();
+                    playerBlack = ai1.toString();
+                }
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+
         switch (result) {
             case 1: {
-                lblTxt.setText("White win!");
+                lblTxt.setText("White(" + playerWhite + ") wins!");
+                break;
+            }
+            case 2: {
+                lblTxt.setText("Black( " + playerBlack + ") give up.\nWhite(" + playerWhite + ") wins!");
                 break;
             }
             case -1: {
-                lblTxt.setText("Black win!");
+                lblTxt.setText("Black(" + playerBlack + ") wins!");
+                break;
+            }
+            case -2: {
+                lblTxt.setText("White(" + playerWhite + ") give up.\nBlack(" + playerBlack + ") wins!");
                 break;
             }
             case -100: {
-                lblTxt.setText("Oops, ended in a draw!");
+                lblTxt.setText("Oops, " + playerBlack + " and " + playerWhite + "\nended in a draw!");
                 break;
             }
             default: {
@@ -287,9 +344,9 @@ public class Gomoku extends Application{
                 winningLine.setStrokeWidth(Constants.pieceRadius / 3);
                 paneBoard.getChildren().add(winningLine);
             }
-            else { // due to unknown bugs, failed to fetch winning PieceInfo
-                System.out.println("Caught a bug and failed to fetch winning PieceInfo");
-                System.exit(1);
+            else {
+                //System.out.println("Caught a bug and failed to fetch winning PieceInfo");
+                //System.exit(1);
             }
         }
     }
@@ -307,7 +364,7 @@ public class Gomoku extends Application{
             case PvAI: {
                 Random ran = new Random();
                 if (ran.nextInt(2) % 2 == 0) {
-                    ai1 = new AI_Herald(-1);
+                    ai1 = new AI_Herald(-1, Pieces.getInstance());
 
                     // When AI_Herald first(white), switch Human's color and let AI_Herald make one move first
                     switchColor();
@@ -315,7 +372,7 @@ public class Gomoku extends Application{
                     letAiMove(ai1);
                 }
                 else {
-                    ai1 = new AI_Herald(1);
+                    ai1 = new AI_Herald(1, Pieces.getInstance());
                 }
                 break;
             }
@@ -323,8 +380,8 @@ public class Gomoku extends Application{
                 break;
             }
             case AIvAI: {
-                ai1 = new AI_Herald(-1);
-                ai2 = new AI_Herald(1);
+                ai1 = new AI_Herald(-1, Pieces.getInstance());
+                ai2 = new AI_Herald(1, Pieces.getInstance());
             }
             default: {
                 break;
@@ -341,13 +398,16 @@ public class Gomoku extends Application{
 
         this.color = -1;
         Constants.gameStarted = false;
+        ai1 = null;
+        ai2 = null;
         sldSize.setDisable(false);
         btnMode.setDisable(false);
         btnStart.setText("Start");
     }
 
-    // A valid click should both satisfy (x, y coordinate close to gridPoint) and (the gridPoint has no piece on it)
     private static boolean checkMouseClick(double meX, double meY) {
+        // A valid click should both satisfy (x, y coordinate close to gridPoint) and (the gridPoint has no piece on it)
+
         boolean validX = false;
         boolean validY = false;
         int x = (int)(meX + 0.5);
@@ -363,8 +423,7 @@ public class Gomoku extends Application{
         return validX && validY;
     }
 
-    // x or y coordinate -> sequence number in Pieces.p[][]
-    static int calcPieceSeq(double meC) {
+    static int calcPieceSeq(double meC) { // x or y coordinate -> sequence number in Pieces.p[][]
         int c = (int)(meC + 0.5);
         if ((c - Constants.getBorder()) % Constants.increment < Constants.increment / 3) {
             return (c - Constants.getBorder()) / Constants.increment;
@@ -379,18 +438,29 @@ public class Gomoku extends Application{
     }
 
     private void letAiMove(AiMove ai) {
-        lblTxt.setText((ai == ai1 ? "AI1" : "AI2") + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving");
+        lblTxt.setText(ai.toString() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving");
 
         PieceInfo aiMove = null;
         boolean isMoveValid = false;
+        int attempt = 0;
         while (isMoveValid == false) {
+            // too many failed attempts make failure indeed
+            if (attempt < maxAttempts) {
+                attempt++;
+            }
+            else {
+                finishGame(-ai.getColor() * 2);
+                return;
+            }
+
             aiMove = ai.nextMove();
-            if (Pieces.getInstance().checkPieceValidity(aiMove)) {
+            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == ai.getColor()) {
                 isMoveValid = true;
                 Pieces.getInstance().setPieceValue(aiMove);
                 drawPiece(aiMove);
             }
         }
+
 
         lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move");
         int checkResult = Referee.checkWinningCondition(aiMove);
@@ -426,8 +496,8 @@ public class Gomoku extends Application{
         }
     }
 
-    // swap human player
     private void switchColor() {
+        // swap human player
         this.color = -this.color;
 
         if (this.color == 1) {

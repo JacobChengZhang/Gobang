@@ -1,8 +1,16 @@
 package Gomoku;
 
 public class Referee {
-    // 1: White wins   0: Continue to play   -1: Black wins   -100: Draw
-    public static int checkWinningCondition(PieceInfo pi) {
+    /**
+     * As for result:
+     * 1    -> White wins
+     * 0    -> Continue to play
+     * -1   -> Black wins
+     * -100 -> Draw.
+     * @param pi
+     * @return result
+     */
+    static int checkWinningCondition(PieceInfo pi) {
         if (checkHorizontallyAndVertically(pi) || checkDiagonal(pi)) {
             return pi.getColor();
         }
@@ -14,8 +22,7 @@ public class Referee {
         }
     }
 
-    //TODO to be redesigned
-    public static boolean checkIfBlankExist() {
+    static boolean checkIfBlankExist() {
         for (int x = 0; x < Constants.getOrder(); x++) {
             for (int y = 0; y < Constants.getOrder(); y++) {
                 if (Pieces.getInstance().getPieceValue(x, y) == 0) {
@@ -26,7 +33,7 @@ public class Referee {
         return false;
     }
 
-    public static boolean checkHorizontallyAndVertically(PieceInfo pi) {
+    static boolean checkHorizontallyAndVertically(PieceInfo pi) {
         int pX = pi.getX();
         int pY = pi.getY();
         int pC = pi.getColor();
@@ -35,10 +42,10 @@ public class Referee {
         int lowX = pX;
         int highX = pX;
 
-        for ( ; (lowX >= 1) && (Pieces.getInstance().getPieceValue(lowX - 1, pY) == Pieces.getInstance().getPieceValue(pX, pY)); lowX--) {
+        for ( ; (lowX >= 1) && (Pieces.getInstance().getPieceValue(lowX - 1, pY) == pC); lowX--) {
         }
 
-        for ( ; (highX < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(highX + 1, pY) == Pieces.getInstance().getPieceValue(pX, pY)); highX++) {
+        for ( ; (highX < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(highX + 1, pY) == pC); highX++) {
         }
         if (highX - lowX >= 4) {
             Pieces.getInstance().setWinningPieceInfo(new PieceInfo(lowX, pY, pC), new PieceInfo(highX, pY, pC));
@@ -51,10 +58,10 @@ public class Referee {
         int lowY = pY;
         int highY = pY;
 
-        for ( ; (lowY >= 1) && (Pieces.getInstance().getPieceValue(pX, lowY - 1) == Pieces.getInstance().getPieceValue(pX, pY)); lowY--) {
+        for ( ; (lowY >= 1) && (Pieces.getInstance().getPieceValue(pX, lowY - 1) == pC); lowY--) {
         }
 
-        for ( ; (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(pX, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); highY++) {
+        for ( ; (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(pX, highY + 1) == pC); highY++) {
         }
         if (highY - lowY >= 4) {
             Pieces.getInstance().setWinningPieceInfo(new PieceInfo(pX, lowY, pC), new PieceInfo(pX, highY, pC));
@@ -65,7 +72,7 @@ public class Referee {
         return false;
     }
 
-    public static boolean checkDiagonal(PieceInfo pi) {
+    static boolean checkDiagonal(PieceInfo pi) {
         int pX = pi.getX();
         int pY = pi.getY();
         int pC = pi.getColor();
@@ -77,10 +84,10 @@ public class Referee {
         int highX = pX;
         int highY = pY;
 
-        for ( ; (lowX >= 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(lowX - 1, lowY - 1) == Pieces.getInstance().getPieceValue(pX, pY)); lowX--, lowY--) {
+        for ( ; (lowX >= 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(lowX - 1, lowY - 1) == pC); lowX--, lowY--) {
         }
 
-        for (; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(highX + 1, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); highX++, highY++) {
+        for (; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(highX + 1, highY + 1) == pC); highX++, highY++) {
         }
         if (highX - lowX >= 4) {
             Pieces.getInstance().setWinningPieceInfo(new PieceInfo(lowX, lowY, pC), new PieceInfo(highX, highY, pC));
@@ -95,10 +102,10 @@ public class Referee {
         highX = pX;
         lowY = pY;
 
-        for ( ; (lowX >= 1) && (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(lowX - 1, highY + 1) == Pieces.getInstance().getPieceValue(pX, pY)); lowX--, highY++) {
+        for ( ; (lowX >= 1) && (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(lowX - 1, highY + 1) == pC); lowX--, highY++) {
         }
 
-        for ( ; (highX < Constants.getOrder() - 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(highX + 1, lowY - 1) == Pieces.getInstance().getPieceValue(pX, pY)); highX++, lowY--) {
+        for ( ; (highX < Constants.getOrder() - 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(highX + 1, lowY - 1) == pC); highX++, lowY--) {
         }
         if (highX - lowX >= 4) {
             Pieces.getInstance().setWinningPieceInfo(new PieceInfo(lowX, highY, pC), new PieceInfo(highX, lowY, pC));
@@ -111,6 +118,6 @@ public class Referee {
 }
 
 
-// TODO passable
+// TODO make both human and AI be able to pass a round
 
 // TODO add ban rules support
