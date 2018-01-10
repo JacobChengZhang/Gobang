@@ -2,6 +2,11 @@ package AI;
 
 import Gomoku.*;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+
 // The AI_Herald naming follows Herald, Guardian, Crusader, Archon, Legend, Ancient, and Divine which are quoted from DotA2 Rank Medals.
 
 public class AI_Herald implements AiMove { // TODO
@@ -33,7 +38,7 @@ public class AI_Herald implements AiMove { // TODO
     public PieceInfo nextMove() {
         // this is a attempt move, will be checked before take effect
 
-        test();
+        //test();
         updateAnalogPieces();
         updateSearchZone();
         evaluateAll(true);
@@ -180,11 +185,167 @@ public class AI_Herald implements AiMove { // TODO
     private int evaluateOneMove(PieceInfo pi) {
         // TODO parameters of score algorithm are better to be stored in file, which makes it be able to learn like a truly AI.
         int score = 0;
-        if (pi.getColor() == color) { // this AI's move (significant)
 
+        Combo combo1 = checkCombo(1, pi);
+        Combo combo2 = checkCombo(2, pi);
+        Combo combo3 = checkCombo(3, pi);
+        Combo combo4 = checkCombo(4, pi);
+
+        ArrayList<Combo> arr = new ArrayList<>();
+        arr.add(combo1);
+        arr.add(combo2);
+        arr.add(combo3);
+        arr.add(combo4);
+
+        Collections.sort(arr, new Comparator<Combo>() {
+            @Override
+            public int compare(Combo o1, Combo o2) {
+                if (o1.length > o2.length) {
+                    return -1;
+                }
+                else if (o1.length < o2.length) {
+                    return 1;
+                }
+                else {
+                    if (o1.quality > o2.quality) {
+                        return -1;
+                    }
+                    else if (o1.quality < o2.quality){
+                        return 1;
+                    }
+                    else {
+                        return 0;
+                    }
+                }
+            }
+        });
+
+        int highLength1 = arr.get(0).length;
+        int quality1 = arr.get(0).quality;
+
+        int highLength2 = arr.get(1).length;
+        int quality2 = arr.get(1).quality;
+
+        switch (highLength1) {
+            case 5: {
+                score += 1000;
+                break;
+            }
+            case 4: {
+                switch (quality1) {
+                    case 2: {
+                        score += 90;
+                        break;
+                    }
+                    case 1: {
+                        score += 50;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 3: {
+                switch (quality1) {
+                    case 2: {
+                        score += 40;
+                        break;
+                    }
+                    case 1: {
+                        score += 30;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 2: {
+                switch (quality1) {
+                    case 2: {
+                        score += 20;
+                        break;
+                    }
+                    case 1: {
+                        score += 10;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+
+        switch (highLength2) {
+            case 5: {
+                score += 1000;
+                break;
+            }
+            case 4: {
+                switch (quality2) {
+                    case 2: {
+                        score += 90;
+                        break;
+                    }
+                    case 1: {
+                        score += 50;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 3: {
+                switch (quality2) {
+                    case 2: {
+                        score += 40;
+                        break;
+                    }
+                    case 1: {
+                        score += 30;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 2: {
+                switch (quality2) {
+                    case 2: {
+                        score += 20;
+                        break;
+                    }
+                    case 1: {
+                        score += 10;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+
+        if (pi.getColor() == color) { // this AI's move (significant)
             return score + 1;
         }
-        else { // the other one's move (a little less significant)
+        else {
             return score;
         }
     }
