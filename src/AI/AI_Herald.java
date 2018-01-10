@@ -182,6 +182,24 @@ public class AI_Herald implements AiMove { // TODO
         }
     }
 
+    private void addPotentialRing(int order) {
+        for (int i = order; i <= Constants.getOrder() - 1 - order; i++) {
+            pScore[i][order] = order;
+            pScore[i][Constants.getOrder() - 1 - order] = order;
+        }
+
+        for (int i = order + 1; i <= Constants.getOrder() - 2 - order; i++) {
+            pScore[order][i] = order;
+            pScore[Constants.getOrder() - 1 - order][i] = order;
+        }
+    }
+
+    private void addPotentialField() {
+        for (int i = 0; i < (Constants.getOrder() + 1) / 2; i++) {
+            addPotentialRing(i);
+        }
+    }
+
     private int evaluateOneMove(PieceInfo pi) {
         // TODO parameters of score algorithm are better to be stored in file, which makes it be able to learn like a truly AI.
         int score = 0;
@@ -352,6 +370,8 @@ public class AI_Herald implements AiMove { // TODO
 
     private void evaluateAll(boolean isForBothSide) {
         clearPScore();
+
+        addPotentialField();
 
         for (int x = szLowestX; x <= szHighestX; x++) {
             for (int y = szLowestY; y <= szHighestY; y++) {
