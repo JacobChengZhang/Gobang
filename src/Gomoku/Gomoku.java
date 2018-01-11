@@ -2,9 +2,6 @@ package Gomoku;
 
 import AI.AI_Herald;
 import javafx.application.Application;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -15,7 +12,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -48,6 +44,8 @@ public class Gomoku extends Application{
     // In PvAI mode, human will always play with ai1
     private AiMove ai1 = null;
     private AiMove ai2 = null;
+    private int ai1Color = 0;
+    private int ai2Color = 0;
 
     // -1:black    1: white
     private int color = -1;
@@ -82,31 +80,29 @@ public class Gomoku extends Application{
         paneBoard.setPrefSize(paneWidth, paneBoardHeight);
         paneButton.setPrefSize(paneButtonWidth, paneBoardHeight);
 
-        paneBoard.setOnMouseClicked(new EventHandler<MouseEvent>() {
-            public void handle(MouseEvent me) {
-                if (!Constants.gameStarted) {
-                    return;
+        paneBoard.setOnMouseClicked(me -> {
+            if (!Constants.gameStarted) {
+                return;
+            }
+            else if (Constants.getMode() == Constants.Mode.AIvAI) {
+                // TODO use timer instead of mouse click to trigger AI_Herald move
+                //return;
+                if (ai1.getColor() == color) {
+                    letAiMove(ai1);
                 }
-                else if (Constants.getMode() == Constants.Mode.AIvAI) {
-                    // TODO use timer instead of mouse click to trigger AI_Herald move
-                    //return;
-                    if (ai1.getColor() == color) {
-                        letAiMove(ai1);
-                    }
-                    else {
-                        letAiMove(ai2);
-                    }
+                else {
+                    letAiMove(ai2);
+                }
 
-                    if (Constants.gameStarted) {
-                        switchColor();
-                    }
+                if (Constants.gameStarted) {
+                    switchColor();
                 }
-                else if (Constants.getMode() == Constants.Mode.PvAI) {
-                    letHumanMove(true, me);
-                }
-                else { // Constants.Mode.PvP
-                    letHumanMove(false, me);
-                }
+            }
+            else if (Constants.getMode() == Constants.Mode.PvAI) {
+                letHumanMove(true, me);
+            }
+            else { // Constants.Mode.PvP
+                letHumanMove(false, me);
             }
         });
 
@@ -143,42 +139,36 @@ public class Gomoku extends Application{
     private void addControlButton() {
         btnStart = new Button("Start");
         btnStart.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
-        btnStart.setOnMouseClicked(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent event) {
-                if (Constants.gameStarted) {
-                    btnEndFunc(true);
-                }
-                else {
-                    btnStartFunc();
-                }
+        btnStart.setOnMouseClicked(event -> {
+            if (Constants.gameStarted) {
+                btnEndFunc(true);
+            }
+            else {
+                btnStartFunc();
             }
         });
 
         btnMode = new Button(Constants.getMode().toString());
         btnMode.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
-        btnMode.setOnMouseClicked(new EventHandler<MouseEvent>() {
-            @Override
-            public void handle(MouseEvent event) {
-                switch(Constants.getMode()) {
-                    case PvAI: {
-                        Constants.setMode(Constants.Mode.PvP);
-                        btnMode.setText("PvP");
-                        break;
-                    }
-                    case PvP: {
-                        Constants.setMode(Constants.Mode.AIvAI);
-                        btnMode.setText("AIvAI");
-                        break;
-                    }
-                    case AIvAI: {
-                        Constants.setMode(Constants.Mode.PvAI);
-                        btnMode.setText("PvAI");
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
+        btnMode.setOnMouseClicked(event -> {
+            switch(Constants.getMode()) {
+                case PvAI: {
+                    Constants.setMode(Constants.Mode.PvP);
+                    btnMode.setText("PvP");
+                    break;
+                }
+                case PvP: {
+                    Constants.setMode(Constants.Mode.AIvAI);
+                    btnMode.setText("AIvAI");
+                    break;
+                }
+                case AIvAI: {
+                    Constants.setMode(Constants.Mode.PvAI);
+                    btnMode.setText("PvAI");
+                    break;
+                }
+                default: {
+                    break;
                 }
             }
         });
@@ -187,14 +177,11 @@ public class Gomoku extends Application{
         lblSize.setWrapText(true);
 
         sldSize = new Slider(Constants.minOrder, Constants.maxOrder, Constants.getOrder());
-        sldSize.valueProperty().addListener(new ChangeListener<Number>() {
-            public void changed(ObservableValue<? extends Number> ov,
-                                Number old_val, Number new_val) {
-                if ((new_val.intValue() != Constants.getOrder()) && (new_val.intValue() % 2 != 0)) {
-                    Constants.setOrder(new_val.intValue());
-                    clearAndDrawBoard();
-                    lblSize.setText("Size: " + new_val.intValue());
-                }
+        sldSize.valueProperty().addListener((ov, old_val, new_val) -> {
+            if ((new_val.intValue() != Constants.getOrder()) && (new_val.intValue() % 2 != 0)) {
+                Constants.setOrder(new_val.intValue());
+                clearAndDrawBoard();
+                lblSize.setText("Size: " + new_val.intValue());
             }
         });
 
@@ -369,6 +356,7 @@ public class Gomoku extends Application{
                 Random ran = new Random();
                 if (ran.nextInt(2) % 2 == 0) {
                     ai1 = new AI_Herald(-1, Pieces.getInstance());
+                    ai1Color = -1;
 
                     // When AI_Herald first(white), switch Human's color and let AI_Herald make one move first
                     switchColor();
@@ -377,6 +365,7 @@ public class Gomoku extends Application{
                 }
                 else {
                     ai1 = new AI_Herald(1, Pieces.getInstance());
+                    ai1Color = 1;
                 }
                 break;
             }
@@ -385,7 +374,10 @@ public class Gomoku extends Application{
             }
             case AIvAI: {
                 ai1 = new AI_Herald(-1, Pieces.getInstance());
+                ai1Color = -1;
+
                 ai2 = new AI_Herald(1, Pieces.getInstance());
+                ai2Color = 1;
             }
             default: {
                 break;
@@ -404,6 +396,8 @@ public class Gomoku extends Application{
         Constants.gameStarted = false;
         ai1 = null;
         ai2 = null;
+        ai1Color = 0;
+        ai2Color = 0;
         sldSize.setDisable(false);
         btnMode.setDisable(false);
         btnStart.setText("Start");
@@ -447,7 +441,7 @@ public class Gomoku extends Application{
         PieceInfo aiMove = null;
         boolean isMoveValid = false;
         int attempt = 0;
-        while (isMoveValid == false) {
+        while (!isMoveValid) {
             // too many failed attempts make failure indeed
             if (attempt < maxAttempts) {
                 attempt++;
@@ -458,7 +452,7 @@ public class Gomoku extends Application{
             }
 
             aiMove = ai.nextMove();
-            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == ai.getColor()) {
+            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
                 isMoveValid = true;
                 Pieces.getInstance().setPieceValue(aiMove);
                 drawPiece(aiMove);

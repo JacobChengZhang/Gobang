@@ -3,20 +3,17 @@ package AI;
 import Gomoku.*;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 
 // The AI_Herald naming follows Herald, Guardian, Crusader, Archon, Legend, Ancient, and Divine which are quoted from DotA2 Rank Medals.
 
 public class AI_Herald implements AiMove { // TODO
-    private int color;
+    private final int color;
     private QueryPieces pieces = null;
     private int[][] p; // analog pieces
     private int[][] pScore;
 
     // searchZone's diameter = [(highestX + border) - (lowestX - border)] * [(highestY + border) - (lowestY - border)]
-    private int searchZoneBorder = 3;
+    private final int searchZoneBorder = 3;
     private int szLowestX = 0;
     private int szHighestX = Constants.getOrder() - 1;
     private int szLowestY = 0;
@@ -38,15 +35,14 @@ public class AI_Herald implements AiMove { // TODO
     public PieceInfo nextMove() {
         // this is a attempt move, will be checked before take effect
 
-        //test();
+        //aiTest();
         updateAnalogPieces();
         updateSearchZone();
         evaluateAll(true);
         return makeDecision();
     }
 
-    private void test() {
-        // TODO test
+    private void aiTest() {
         /*
         oiioo
         oiiii
@@ -215,26 +211,13 @@ public class AI_Herald implements AiMove { // TODO
         arr.add(combo3);
         arr.add(combo4);
 
-        Collections.sort(arr, new Comparator<Combo>() {
-            @Override
-            public int compare(Combo o1, Combo o2) {
-                if (o1.length > o2.length) {
-                    return -1;
-                }
-                else if (o1.length < o2.length) {
-                    return 1;
-                }
-                else {
-                    if (o1.quality > o2.quality) {
-                        return -1;
-                    }
-                    else if (o1.quality < o2.quality){
-                        return 1;
-                    }
-                    else {
-                        return 0;
-                    }
-                }
+        arr.sort((o1, o2) -> {
+            if (o1.length > o2.length) {
+                return -1;
+            } else if (o1.length < o2.length) {
+                return 1;
+            } else {
+                return Integer.compare(o2.quality, o1.quality);
             }
         });
 
@@ -244,6 +227,7 @@ public class AI_Herald implements AiMove { // TODO
         int highLength2 = arr.get(1).length;
         int quality2 = arr.get(1).quality;
 
+        // TODO needs to be re-organized
         switch (highLength1) {
             case 5: {
                 score += 1000;
@@ -525,7 +509,7 @@ public class AI_Herald implements AiMove { // TODO
                 for ( ; (lowX >= 1) && (lowY >= 1) && (p[lowX - 1][lowY - 1] == pC); lowX--, lowY--) {
                 }
 
-                for (; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (p[highX + 1][highY + 1] == pC); highX++, highY++) {
+                for ( ; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (p[highX + 1][highY + 1] == pC); highX++, highY++) {
                 }
 
                 int quality = 0;
@@ -633,8 +617,8 @@ public class AI_Herald implements AiMove { // TODO
     }
 
     class Combo {
-        int length = 0;
-        int quality = 0; // 0: no side open, 1: one side open, 2: both side open
+        int length;
+        int quality; // 0: no side open, 1: one side open, 2: both side open
 
         Combo(int length, int quality) {
             this.length = length;

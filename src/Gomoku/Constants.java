@@ -3,7 +3,7 @@ package Gomoku;
 public class Constants {
     static boolean gameStarted = false;
 
-    // TODO add differents ban rules
+    // TODO add different ban rules
     private static boolean bans;
 
     public enum  Mode{

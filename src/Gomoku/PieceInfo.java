@@ -1,9 +1,9 @@
 package Gomoku;
 
 public class PieceInfo {
-    private int x;
-    private int y;
-    private int color;
+    private final int x;
+    private final int y;
+    private final int color;
 
     public PieceInfo(int x, int y, int color) {
         this.x = x;
