@@ -10,6 +10,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.FlowPane;
@@ -31,6 +32,7 @@ import java.util.Date;
 import java.util.Random;
 
 public class Gomoku extends Application{
+    // UI elements
     private FlowPane root = null;
 
     private Pane paneBoard = null;
@@ -42,11 +44,13 @@ public class Gomoku extends Application{
     private Label lblSize = null;
     private Button btnSave = null;
     private Button btnLoad = null;
+    private Button btnRetract = null;
     private Label lblTxt = null;
 
     private int paneWidth = 0;
     private int paneBoardHeight = 0;
     private int paneButtonWidth = 0;
+
 
     // In PvAI mode, human will always play with ai1
     private AiMove ai1 = null;
@@ -54,17 +58,18 @@ public class Gomoku extends Application{
     private int ai1Color = 0;
     private int ai2Color = 0;
 
+
     // used for saving replay
     private StringBuilder sb = null;
 
+
+    // thread for AI trigger or Replay loading
     private Thread thread = null;
     private boolean endThread = false;
 
+
     // -1:black    1: white
     private int color = -1;
-
-    // max number of failed attempts that AI can make
-    private static final int maxAttempts = 10;
 
 
     public static void main(String[] args) {
@@ -135,12 +140,20 @@ public class Gomoku extends Application{
         drawDot(new PieceInfo(Constants.getOrder() - 4, Constants.getOrder() - 4, 0));
         drawDot(new PieceInfo((Constants.getOrder() - 1) / 2, (Constants.getOrder() - 1) / 2, 0));
 
+        for (int x = 0; x < Constants.getOrder(); x++) {
+            for (int y = 0; y < Constants.getOrder(); y++) {
+                int tempColor = Pieces.getInstance().getPieceValue(x, y);
+                if (tempColor != 0) {
+                    drawPiece(new PieceInfo(x, y, tempColor));
+                }
+            }
+        }
         // TODO draw number 1 ~ 15 and characters A ~ O (not necessary)
     }
 
     private void addControlButton() {
         btnStart = new Button("Start");
-        btnStart.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
+        btnStart.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
         btnStart.setOnMouseClicked(event -> {
             if (Constants.gameStarted) {
                 btnEndFunc(true);
@@ -150,8 +163,10 @@ public class Gomoku extends Application{
             }
         });
 
+        Separator sp1 = new Separator(Orientation.HORIZONTAL);
+
         btnMode = new Button(Constants.getMode().toString());
-        btnMode.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
+        btnMode.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
         btnMode.setOnMouseClicked(event -> {
             btnModeFunc();
         });
@@ -168,15 +183,17 @@ public class Gomoku extends Application{
             }
         });
 
+        Separator sp2 = new Separator(Orientation.HORIZONTAL);
+
         btnSave = new Button("Save");
-        btnSave.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
+        btnSave.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
         btnSave.setDisable(true);
         btnSave.setOnMouseClicked(event -> {
             btnSaveFunc();
         });
 
         btnLoad = new Button("Load");
-        btnLoad.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
+        btnLoad.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
         btnLoad.setOnMouseClicked(event -> {
             if (thread == null || thread.getState() != Thread.State.TIMED_WAITING) {
                 btnLoadFunc();
@@ -187,6 +204,17 @@ public class Gomoku extends Application{
             }
         });
 
+        Separator sp3 = new Separator(Orientation.HORIZONTAL);
+
+        btnRetract = new Button("Retract");
+        btnRetract.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
+        btnRetract.setDisable(true);
+        btnRetract.setOnMouseClicked(event -> {
+            btnRetractFunc();
+        });
+
+        Separator sp4 = new Separator(Orientation.HORIZONTAL);
+
         lblTxt = new Label("Gomoku " + Constants.version + ". \nHope you enjoy!\n(Developed by JacobChengZhang)");
         lblTxt.setWrapText(true);
 
@@ -194,7 +222,7 @@ public class Gomoku extends Application{
         vBox.setPrefSize(paneButtonWidth, paneBoardHeight);
         vBox.setPadding(new Insets(20, 15, 20, 15));
         vBox.setSpacing(20);
-        vBox.getChildren().addAll(btnStart, btnMode, sldSize, lblSize, btnSave, btnLoad, lblTxt);
+        vBox.getChildren().addAll(btnStart, sp1, btnMode, sldSize, lblSize, sp2, btnSave, btnLoad, sp3, btnRetract, sp4, lblTxt);
         vBox.setAlignment(Pos.TOP_CENTER);
 
         paneButton.getChildren().add(vBox);
@@ -360,6 +388,8 @@ public class Gomoku extends Application{
 
         switch (Constants.getMode()) {
             case PvAI: {
+                btnRetract.setDisable(false);
+
                 Random ran = new Random();
                 if (ran.nextInt(2) % 2 == 0) {
                     ai1 = new AI_Herald(-1, Pieces.getInstance());
@@ -381,6 +411,8 @@ public class Gomoku extends Application{
                 break;
             }
             case PvP: {
+                btnRetract.setDisable(false);
+
                 sb.append("Human\n").append("Human\n");
                 break;
             }
@@ -450,6 +482,7 @@ public class Gomoku extends Application{
             lblTxt.setText("");
             sb = null;
             btnSave.setDisable(true);
+            btnRetract.setDisable(true);
         }
 
         this.color = -1;
@@ -550,6 +583,7 @@ public class Gomoku extends Application{
 
                                 final PieceInfo tempPi = new PieceInfo(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor);
                                 if (Pieces.getInstance().setPieceValue(tempPi)) {
+
                                     Platform.runLater(() -> {
                                         drawPiece(tempPi);
                                         int checkResult = Referee.checkWinningCondition(tempPi);
@@ -604,6 +638,34 @@ public class Gomoku extends Application{
         }
     }
 
+    private void btnRetractFunc() {
+        if (thread != null && thread.getState() != Thread.State.TERMINATED) {
+            lblTxt.setText("No response.\nTry retract later.");
+            return;
+        }
+
+        if (Pieces.getInstance().retract()) {
+            clearAndDrawBoard();
+
+            switch (Constants.getMode()) {
+                case PvAI: {
+                    break;
+                }
+                case PvP: {
+                    switchColor();
+                    break;
+                }
+                default: {
+                    lblTxt.setText("Caught a bug in btnRetractFunc.");
+                    break;
+                }
+            }
+        }
+        else {
+            lblTxt.setText("Failed to retract.");
+        }
+    }
+
     private static boolean checkMouseClick(double meX, double meY) {
         // A valid click should both satisfy (x, y coordinate close to gridPoint) and (the gridPoint has no piece on it)
 
@@ -644,7 +706,7 @@ public class Gomoku extends Application{
         int attempt = 0;
         while (!isMoveValid) {
             // too many failed attempts make failure indeed
-            if (attempt < maxAttempts) {
+            if (attempt < Constants.maxAttempts) {
                 attempt++;
             }
             else {
@@ -656,6 +718,7 @@ public class Gomoku extends Application{
             if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
                 isMoveValid = true;
                 Pieces.getInstance().setPieceValue(aiMove);
+                Pieces.getInstance().recordPieceForRetract(aiMove);
                 drawPiece(aiMove);
 
                 sb.append(aiMove.getX()).append(" ").append(aiMove.getY()).append("\n");
@@ -675,6 +738,7 @@ public class Gomoku extends Application{
             int seqY = calcPieceSeq(me.getY());
             PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
             if (Pieces.getInstance().setPieceValue(tempPi)) {
+                Pieces.getInstance().recordPieceForRetract(tempPi);
                 drawPiece(tempPi);
 
                 sb.append(tempPi.getX()).append(" ").append(tempPi.getY()).append("\n");
