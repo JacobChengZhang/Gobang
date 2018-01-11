@@ -19,6 +19,8 @@ public class Constants {
         }
     }
 
+    public static final int aiThreadCycle = 100;
+
     static final int minOrder = 11;
     static final int maxOrder = 19;
     private static int order = 15; // better between 11~19

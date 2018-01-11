@@ -84,7 +84,6 @@ public class AI_Herald implements AiMove { // TODO
             for (int j = 0; j < Constants.getOrder(); j++) {
                 if (pieces.getPieceValue(i, j) != p[i][j]) {
                     p[i][j] = pieces.getPieceValue(i, j);
-                    return; // since every time only one piece is changed
                 }
             }
         }
@@ -417,12 +416,12 @@ public class AI_Herald implements AiMove { // TODO
     }
 
     /**
-     * As for direction:
-     * 1 for '|'
+     * @param direction
+     * * 1 for '|'
      * 2 for '-'
      * 3 for '/'
      * 4 for '\'
-     * @param direction
+     *
      * @return Combo
      */
     private Combo checkCombo(int direction, PieceInfo pi) {
@@ -557,12 +556,9 @@ public class AI_Herald implements AiMove { // TODO
 
         for ( ; (highY < Constants.getOrder() - 1) && (p[pX][highY + 1] == pC); highY++) {
         }
-        if (highY - lowY >= 4) {
-            return true;
-        }
+        return highY - lowY >= 4;
 
         // otherwise
-        return false;
     }
 
     private boolean checkDiagonal(PieceInfo pi) {
@@ -599,12 +595,9 @@ public class AI_Herald implements AiMove { // TODO
 
         for ( ; (highX < Constants.getOrder() - 1) && (lowY >= 1) && (p[highX + 1][lowY - 1] == pC); highX++, lowY--) {
         }
-        if (highX - lowX >= 4) {
-            return true;
-        }
+        return highX - lowX >= 4;
 
         // otherwise
-        return false;
     }
 
     private void printAnalogPieces() {

@@ -2,6 +2,7 @@ package Gomoku;
 
 import AI.AI_Herald;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -21,8 +22,12 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
+import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Random;
 
 public class Gomoku extends Application{
@@ -35,6 +40,8 @@ public class Gomoku extends Application{
     private Button btnMode = null;
     private Slider sldSize = null;
     private Label lblSize = null;
+    private Button btnSave = null;
+    private Button btnLoad = null;
     private Label lblTxt = null;
 
     private int paneWidth = 0;
@@ -46,6 +53,12 @@ public class Gomoku extends Application{
     private AiMove ai2 = null;
     private int ai1Color = 0;
     private int ai2Color = 0;
+
+    // used for saving replay
+    private StringBuilder sb = null;
+
+    private Thread thread = null;
+    private boolean endThread = false;
 
     // -1:black    1: white
     private int color = -1;
@@ -85,18 +98,7 @@ public class Gomoku extends Application{
                 return;
             }
             else if (Constants.getMode() == Constants.Mode.AIvAI) {
-                // TODO use timer instead of mouse click to trigger AI_Herald move
-                //return;
-                if (ai1.getColor() == color) {
-                    letAiMove(ai1);
-                }
-                else {
-                    letAiMove(ai2);
-                }
-
-                if (Constants.gameStarted) {
-                    switchColor();
-                }
+                return;
             }
             else if (Constants.getMode() == Constants.Mode.PvAI) {
                 letHumanMove(true, me);
@@ -151,26 +153,7 @@ public class Gomoku extends Application{
         btnMode = new Button(Constants.getMode().toString());
         btnMode.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
         btnMode.setOnMouseClicked(event -> {
-            switch(Constants.getMode()) {
-                case PvAI: {
-                    Constants.setMode(Constants.Mode.PvP);
-                    btnMode.setText("PvP");
-                    break;
-                }
-                case PvP: {
-                    Constants.setMode(Constants.Mode.AIvAI);
-                    btnMode.setText("AIvAI");
-                    break;
-                }
-                case AIvAI: {
-                    Constants.setMode(Constants.Mode.PvAI);
-                    btnMode.setText("PvAI");
-                    break;
-                }
-                default: {
-                    break;
-                }
-            }
+            btnModeFunc();
         });
 
         lblSize = new Label("Size: " + Constants.getOrder());
@@ -185,6 +168,26 @@ public class Gomoku extends Application{
             }
         });
 
+        btnSave = new Button("Save");
+        btnSave.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
+        btnSave.setDisable(true);
+        btnSave.setOnMouseClicked(event -> {
+            btnSaveFunc();
+        });
+
+        btnLoad = new Button("Load");
+        btnLoad.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
+        btnLoad.setOnMouseClicked(event -> {
+            if (thread == null || thread.getState() != Thread.State.RUNNABLE) {
+                btnLoadFunc();
+            }
+            else {
+                btnEndFunc(true);
+                btnLoad.setText("Load");
+            }
+
+        });
+
         lblTxt = new Label("Gomoku " + Constants.version + ". \nHope you enjoy!\n(Developed by JacobChengZhang)");
         lblTxt.setWrapText(true);
 
@@ -192,7 +195,7 @@ public class Gomoku extends Application{
         vBox.setPrefSize(paneButtonWidth, paneBoardHeight);
         vBox.setPadding(new Insets(20, 15, 20, 15));
         vBox.setSpacing(20);
-        vBox.getChildren().addAll(btnStart, btnMode, sldSize, lblSize, lblTxt);
+        vBox.getChildren().addAll(btnStart, btnMode, sldSize, lblSize, btnSave, btnLoad, lblTxt);
         vBox.setAlignment(Pos.TOP_CENTER);
 
         paneButton.getChildren().add(vBox);
@@ -223,7 +226,9 @@ public class Gomoku extends Application{
         p.setStrokeWidth(Constants.lineWidth);
         p.setStroke(Color.BLACK);
 
-        paneBoard.getChildren().add(p);
+        Platform.runLater(() -> {
+            paneBoard.getChildren().add(p);
+        });
     }
 
     private Parent startGame() {
@@ -237,14 +242,12 @@ public class Gomoku extends Application{
     }
 
     /**
-     * As for result
+     * @param result
      * 1    -> White wins
      * 2    -> Black give up, White wins
      * -1   -> Black wins
      * -2   -> White give up, Black wins
      * -100 -> Draw game
-     *
-     * @param result
      */
     private void finishGame(int result) {
         playWinningAnimation(result);
@@ -348,6 +351,9 @@ public class Gomoku extends Application{
         Constants.gameStarted = true;
         sldSize.setDisable(true);
         btnMode.setDisable(true);
+        sb = new StringBuilder();
+        btnSave.setDisable(false);
+        btnLoad.setDisable(true);
         lblTxt.setText("Black Move");
         btnStart.setText("End");
 
@@ -358,6 +364,8 @@ public class Gomoku extends Application{
                     ai1 = new AI_Herald(-1, Pieces.getInstance());
                     ai1Color = -1;
 
+                    sb.append(ai1.toString()).append("\n").append("Human\n");
+
                     // When AI_Herald first(white), switch Human's color and let AI_Herald make one move first
                     switchColor();
 
@@ -366,18 +374,60 @@ public class Gomoku extends Application{
                 else {
                     ai1 = new AI_Herald(1, Pieces.getInstance());
                     ai1Color = 1;
+
+                    sb.append("Human\n").append(ai1.toString()).append("\n");
                 }
                 break;
             }
             case PvP: {
+                sb.append("Human\n").append("Human\n");
                 break;
             }
             case AIvAI: {
-                ai1 = new AI_Herald(-1, Pieces.getInstance());
-                ai1Color = -1;
+                Random ran = new Random();
+                int first = -1;
+                if (ran.nextInt(2) % 2 == 0) {
+                    first = -first;
+                }
 
-                ai2 = new AI_Herald(1, Pieces.getInstance());
-                ai2Color = 1;
+                ai1 = new AI_Herald(first, Pieces.getInstance());
+                ai1Color = first;
+
+                ai2 = new AI_Herald(-first, Pieces.getInstance());
+                ai2Color = -first;
+
+                if (ran.nextInt(2) % 2 == 0) {
+                    sb.append(ai2.toString()).append("\n").append(ai1.toString()).append("\n");
+                }
+                else {
+                    sb.append(ai1.toString()).append("\n").append(ai2.toString()).append("\n");
+                }
+
+                thread = new Thread(() -> {
+                    while (Constants.gameStarted && !endThread) {
+                        if (ai1.getColor() == color) {
+                            letAiMove(ai1);
+                        }
+                        else {
+                            letAiMove(ai2);
+                        }
+
+                        if (Constants.gameStarted) {
+                            switchColor();
+                        }
+
+                        try {
+                            Thread.sleep(Constants.aiThreadCycle);
+                        }
+                        catch (InterruptedException ie) {
+                            ie.printStackTrace();
+                            Platform.runLater(() ->
+                                lblTxt.setText("Something went wrong with AI thread."));
+                        }
+                    }
+                });
+                endThread = false;
+                thread.start();
             }
             default: {
                 break;
@@ -387,9 +437,14 @@ public class Gomoku extends Application{
 
     private void btnEndFunc(boolean clearPieces) {
         if (clearPieces) {
+            while (thread != null && thread.getState() != Thread.State.TERMINATED) {
+                endThread = true;
+            }
             Pieces.getInstance().clearPieces();
             clearAndDrawBoard();
             lblTxt.setText("");
+            sb = null;
+            btnSave.setDisable(true);
         }
 
         this.color = -1;
@@ -400,7 +455,136 @@ public class Gomoku extends Application{
         ai2Color = 0;
         sldSize.setDisable(false);
         btnMode.setDisable(false);
+        btnLoad.setDisable(false);
         btnStart.setText("Start");
+    }
+
+    private void btnModeFunc() {
+        switch(Constants.getMode()) {
+            case PvAI: {
+                Constants.setMode(Constants.Mode.PvP);
+                btnMode.setText("PvP");
+                break;
+            }
+            case PvP: {
+                Constants.setMode(Constants.Mode.AIvAI);
+                btnMode.setText("AIvAI");
+                break;
+            }
+            case AIvAI: {
+                Constants.setMode(Constants.Mode.PvAI);
+                btnMode.setText("PvAI");
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+    }
+
+    private void btnSaveFunc() {
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String date = df.format(new Date());
+
+        try {
+            OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(new StringBuilder().append("./replay/").append(date.replaceAll(":", "_")).append(".txt").toString()), "utf-8");
+            writer.write(sb.toString());
+            writer.close();
+        }
+        catch (Exception ex) {
+            lblTxt.setText("Unknown error. Failed to save.");
+            ex.printStackTrace();
+        }
+    }
+
+    private void btnLoadFunc() {
+        FileChooser fc = new FileChooser();
+        fc.setInitialDirectory(new File(System.getProperty("user.dir")));
+        fc.setTitle("Load Replay");
+        fc.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+        File selectedFile = fc.showOpenDialog(null);
+        if (selectedFile != null) {
+            clearAndDrawBoard();
+            btnStart.setDisable(true);
+            btnMode.setDisable(true);
+            sldSize.setDisable(true);
+            btnLoad.setText("Stop");
+
+            thread = new Thread(() -> {
+                BufferedReader reader = null;
+                try {
+                    reader = new BufferedReader(new FileReader(selectedFile));
+                    String tempStr = null;
+                    int line = 1;
+                    for ( ;(tempStr = reader.readLine()) != null && !endThread; line++) {
+                        switch (line) {
+                            case 1: {
+                                final String txt1 = tempStr;
+                                Platform.runLater(() ->
+                                    lblTxt.setText("(Black)" + txt1));
+                                break;
+                            }
+                            case 2: {
+                                final String txt2 = tempStr;
+                                Platform.runLater(() ->
+                                    lblTxt.setText(lblTxt.getText() + "\n\n(White)" + txt2));
+                                break;
+                            }
+                            default: {
+                                String[] arr = tempStr.split(" ");
+
+                                final int tempColor;
+                                if (line % 2 == 0) {
+                                    tempColor = 1;
+                                }
+                                else {
+                                    tempColor = -1;
+                                }
+                                Platform.runLater(() -> {
+                                    drawPiece(new PieceInfo(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor));
+                                });
+                                break;
+                            }
+                        }
+
+                        Thread.sleep(1000);
+                    }
+                    reader.close();
+                }
+                catch (IOException ioe) {
+                    ioe.printStackTrace();
+                    Platform.runLater(() ->
+                            lblTxt.setText("Something goes wrong with the file. \nFailed to load replay."));
+                }
+                catch (InterruptedException ie) {
+                    ie.printStackTrace();
+                    Platform.runLater(() ->
+                            lblTxt.setText("Something goes wrong with the file. \nFailed to load replay."));
+                }
+                finally {
+                    if (reader != null) {
+                        try {
+                            reader.close();
+                        }
+                        catch (IOException e1) {
+                            e1.printStackTrace();
+                        }
+                    }
+                }
+
+                Platform.runLater(() -> lblTxt.setText(lblTxt.getText() + "\n\nReplay finished."));
+                btnStart.setDisable(false);
+                btnMode.setDisable(false);
+                sldSize.setDisable(false);
+                btnLoad.setText("Load");
+            });
+            endThread = false;
+            thread.start();
+
+        }
+        else {
+            lblTxt.setText("Something goes wrong with the file. \nFailed to load replay.");
+        }
     }
 
     private static boolean checkMouseClick(double meX, double meY) {
@@ -456,6 +640,8 @@ public class Gomoku extends Application{
                 isMoveValid = true;
                 Pieces.getInstance().setPieceValue(aiMove);
                 drawPiece(aiMove);
+
+                sb.append(aiMove.getX()).append(" ").append(aiMove.getY()).append("\n");
             }
         }
 
@@ -474,6 +660,8 @@ public class Gomoku extends Application{
             PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
             if (Pieces.getInstance().setPieceValue(tempPi)) {
                 drawPiece(tempPi);
+
+                sb.append(tempPi.getX()).append(" ").append(tempPi.getY()).append("\n");
 
                 int checkResult = Referee.checkWinningCondition(tempPi);
                 if (checkResult != 0) {
@@ -508,5 +696,3 @@ public class Gomoku extends Application{
 }
 
 // TODO add Repentance
-
-// TODO add replay function

@@ -2,13 +2,12 @@ package Gomoku;
 
 public class Referee {
     /**
-     * As for result:
+     * @param pi piece info
+     * @return result
      * 1    -> White wins
      * 0    -> Continue to play
      * -1   -> Black wins
      * -100 -> Draw.
-     * @param pi
-     * @return result
      */
     static int checkWinningCondition(PieceInfo pi) {
         if (checkHorizontallyAndVertically(pi) || checkDiagonal(pi)) {
