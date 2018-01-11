@@ -20,7 +20,7 @@ public class Pieces implements QueryPieces{
     }
 
     static Pieces getInstance() {
-        if (pieces == null) {
+        if (pieces == null || pieces.p.length != Constants.getOrder()) {
             pieces = new Pieces();
         }
         return pieces;

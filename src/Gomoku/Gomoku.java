@@ -419,7 +419,7 @@ public class Gomoku extends Application{
                     ai1 = new AI_Herald(-1, Pieces.getInstance());
                     ai1Color = -1;
 
-                    sb.append(ai1.toString()).append("\n").append("Human\n");
+                    sb.append(Constants.getOrder()).append("\n").append(ai1.toString()).append("\n").append("Human\n");
 
                     // When AI_Herald first(white), switch Human's color and let AI_Herald make one move first
                     switchColor();
@@ -430,14 +430,14 @@ public class Gomoku extends Application{
                     ai1 = new AI_Herald(1, Pieces.getInstance());
                     ai1Color = 1;
 
-                    sb.append("Human\n").append(ai1.toString()).append("\n");
+                    sb.append(Constants.getOrder()).append("\n").append("Human\n").append(ai1.toString()).append("\n");
                 }
                 break;
             }
             case PvP: {
                 btnRetract.setDisable(false);
 
-                sb.append("Human\n").append("Human\n");
+                sb.append(Constants.getOrder()).append("\n").append("Human\n").append("Human\n");
                 break;
             }
             case AIvAI: {
@@ -454,10 +454,10 @@ public class Gomoku extends Application{
                 ai2Color = -first;
 
                 if (ran.nextInt(2) % 2 == 0) {
-                    sb.append(ai2.toString()).append("\n").append(ai1.toString()).append("\n");
+                    sb.append(Constants.getOrder()).append("\n").append(ai2.toString()).append("\n").append(ai1.toString()).append("\n");
                 }
                 else {
-                    sb.append(ai1.toString()).append("\n").append(ai2.toString()).append("\n");
+                    sb.append(Constants.getOrder()).append("\n").append(ai1.toString()).append("\n").append(ai2.toString()).append("\n");
                 }
 
                 thread = new Thread(() -> {
@@ -573,6 +573,7 @@ public class Gomoku extends Application{
             btnMode.setDisable(true);
             sldSize.setDisable(true);
             btnLoad.setText("Stop");
+            btnRetract.setDisable(true);
 
             thread = new Thread(() -> {
                 BufferedReader reader = null;
@@ -583,12 +584,23 @@ public class Gomoku extends Application{
                     for ( ;(tempStr = reader.readLine()) != null && !endThread; line++) {
                         switch (line) {
                             case 1: {
+                                final int replayOrder = Integer.parseInt(tempStr);
+                                Constants.setOrder(replayOrder);
+
+                                Platform.runLater(() -> {
+                                    clearAndRedrawBoard();
+                                    sldSize.setValue(replayOrder);
+                                    lblSize.setText("Size: " + replayOrder);
+                                });
+                                break;
+                            }
+                            case 2: {
                                 final String txt1 = tempStr;
                                 Platform.runLater(() ->
                                         lblTxt.setText("(Black)" + txt1));
                                 break;
                             }
-                            case 2: {
+                            case 3: {
                                 final String txt2 = tempStr;
                                 Platform.runLater(() ->
                                         lblTxt.setText(lblTxt.getText() + "\n\n(White)" + txt2));
@@ -599,10 +611,10 @@ public class Gomoku extends Application{
 
                                 final int tempColor;
                                 if (line % 2 == 0) {
-                                    tempColor = 1;
+                                    tempColor = -1;
                                 }
                                 else {
-                                    tempColor = -1;
+                                    tempColor = 1;
                                 }
 
                                 final PieceInfo tempPi = new PieceInfo(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor);
