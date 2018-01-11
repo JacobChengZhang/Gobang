@@ -247,6 +247,10 @@ public class Gomoku extends Application{
      * -100 -> Draw game
      */
     private void finishGame(int result) {
+        while (thread != null && thread.getState() != Thread.State.TERMINATED) {
+            endThread = true;
+        }
+
         playWinningAnimation(result);
 
         String playerWhite = null;
@@ -436,10 +440,11 @@ public class Gomoku extends Application{
     }
 
     private void btnEndFunc(boolean clearPieces) {
+        while (thread != null && thread.getState() != Thread.State.TERMINATED) {
+            endThread = true;
+        }
+
         if (clearPieces) {
-            while (thread != null && thread.getState() != Thread.State.TERMINATED) {
-                endThread = true;
-            }
             Pieces.getInstance().clearPieces();
             clearAndDrawBoard();
             lblTxt.setText("");
@@ -562,7 +567,7 @@ public class Gomoku extends Application{
                             }
                         }
 
-                        Thread.sleep(1000);
+                        Thread.sleep(Constants.loadThreadCycle);
                     }
                     reader.close();
                 }

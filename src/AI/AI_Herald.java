@@ -375,7 +375,7 @@ public class AI_Herald implements AiMove { // TODO
         int highestScore = -1;
         for (int x = szLowestX; x <= szHighestX; x++) {
             for (int y = szLowestY; y <= szHighestY; y++) {
-                if (pScore[x][y] > highestScore) {
+                if (p[x][y] == 0 && pScore[x][y] > highestScore) {
                     highestScore = pScore[x][y];
                     resultX = x;
                     resultY = y;

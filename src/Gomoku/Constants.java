@@ -19,7 +19,8 @@ public class Constants {
         }
     }
 
-    public static final int aiThreadCycle = 100;
+    public static final int aiThreadCycle = 200;
+    public static final int loadThreadCycle = 1000;
 
     static final int minOrder = 11;
     static final int maxOrder = 19;
