@@ -6,6 +6,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -16,6 +17,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
@@ -41,7 +43,7 @@ public class Gomoku extends Application{
 
     private int paneWidth = 0;
     private int paneBoardHeight = 0;
-    private int paneButtonHeight = 0;
+    private int paneButtonWidth = 0;
 
     // In PvAI mode, human will always play with ai1
     private AiMove ai1 = null;
@@ -67,18 +69,18 @@ public class Gomoku extends Application{
     }
 
     private void createPane() {
-        this.root = new FlowPane();
+        this.root = new FlowPane(Orientation.HORIZONTAL);
         paneBoard = new Pane();
         paneButton = new Pane();
 
         // paneWidth: |<-   minBorder  ->|<-   ((maxOrder - 1) * increment)   ->|<-   minBorder   ->|   (Y is the same)
         paneWidth = Constants.minBorder * 2 + (Constants.maxOrder - 1) * Constants.increment;
         paneBoardHeight = Constants.minBorder * 2 + (Constants.maxOrder - 1) * Constants.increment;
-        paneButtonHeight = Constants.btnPaneHeight;
+        paneButtonWidth = Constants.btnPaneWidth;
 
-        root.setPrefSize(paneWidth, paneBoardHeight + paneButtonHeight);
+        root.setPrefSize(paneWidth + paneButtonWidth, paneBoardHeight);
         paneBoard.setPrefSize(paneWidth, paneBoardHeight);
-        paneButton.setPrefSize(paneWidth, paneButtonHeight);
+        paneButton.setPrefSize(paneButtonWidth, paneBoardHeight);
 
         paneBoard.setOnMouseClicked(new EventHandler<MouseEvent>() {
             public void handle(MouseEvent me) {
@@ -140,7 +142,7 @@ public class Gomoku extends Application{
 
     private void addControlButton() {
         btnStart = new Button("Start");
-        btnStart.setPrefSize(Constants.btnPaneHeight * 2, Constants.btnPaneHeight * 2 / 3);
+        btnStart.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
         btnStart.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
             public void handle(MouseEvent event) {
@@ -154,7 +156,7 @@ public class Gomoku extends Application{
         });
 
         btnMode = new Button(Constants.getMode().toString());
-        btnMode.setPrefSize(Constants.btnPaneHeight * 2, Constants.btnPaneHeight * 2 / 3);
+        btnMode.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
         btnMode.setOnMouseClicked(new EventHandler<MouseEvent>() {
             @Override
             public void handle(MouseEvent event) {
@@ -182,6 +184,7 @@ public class Gomoku extends Application{
         });
 
         lblSize = new Label("Size: " + Constants.getOrder());
+        lblSize.setWrapText(true);
 
         sldSize = new Slider(Constants.minOrder, Constants.maxOrder, Constants.getOrder());
         sldSize.valueProperty().addListener(new ChangeListener<Number>() {
@@ -195,16 +198,17 @@ public class Gomoku extends Application{
             }
         });
 
-        lblTxt = new Label("Gomoku " + Constants.version + ". Hope you enjoy!\n(Developed by JacobChengZhang)");
+        lblTxt = new Label("Gomoku " + Constants.version + ". \nHope you enjoy!\n(Developed by JacobChengZhang)");
+        lblTxt.setWrapText(true);
 
-        HBox hBox = new HBox();
-        hBox.setPrefSize(paneWidth, paneButtonHeight);
-        hBox.setPadding(new Insets(0, 30, 0, 30));
-        hBox.setSpacing(20);
-        hBox.getChildren().addAll(btnStart, btnMode, lblSize, sldSize, lblTxt);
-        hBox.setAlignment(Pos.CENTER_LEFT);
+        VBox vBox = new VBox();
+        vBox.setPrefSize(paneButtonWidth, paneBoardHeight);
+        vBox.setPadding(new Insets(20, 15, 20, 15));
+        vBox.setSpacing(20);
+        vBox.getChildren().addAll(btnStart, btnMode, sldSize, lblSize, lblTxt);
+        vBox.setAlignment(Pos.TOP_CENTER);
 
-        paneButton.getChildren().add(hBox);
+        paneButton.getChildren().add(vBox);
     }
 
     private void drawDot(PieceInfo pi) {
@@ -508,3 +512,7 @@ public class Gomoku extends Application{
         }
     }
 }
+
+// TODO add Repentance
+
+// TODO add replay function

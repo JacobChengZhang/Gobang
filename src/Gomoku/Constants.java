@@ -43,7 +43,7 @@ public class Constants {
     }
 
     final static int increment = 38;
-    final static int btnPaneHeight = 35;
+    final static int btnPaneWidth = 180;
     final static double pieceRadius = 16f;
     final static double lineWidth = 1f;
     final static double dotRadius = 4f;
