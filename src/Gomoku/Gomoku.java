@@ -178,14 +178,13 @@ public class Gomoku extends Application{
         btnLoad = new Button("Load");
         btnLoad.setPrefSize(Constants.btnPaneWidth * 2 / 3, Constants.btnPaneWidth / 4);
         btnLoad.setOnMouseClicked(event -> {
-            if (thread == null || thread.getState() != Thread.State.RUNNABLE) {
+            if (thread == null || thread.getState() != Thread.State.TIMED_WAITING) {
                 btnLoadFunc();
             }
             else {
                 btnEndFunc(true);
                 btnLoad.setText("Load");
             }
-
         });
 
         lblTxt = new Label("Gomoku " + Constants.version + ". \nHope you enjoy!\n(Developed by JacobChengZhang)");
@@ -226,9 +225,7 @@ public class Gomoku extends Application{
         p.setStrokeWidth(Constants.lineWidth);
         p.setStroke(Color.BLACK);
 
-        Platform.runLater(() -> {
-            paneBoard.getChildren().add(p);
-        });
+        paneBoard.getChildren().add(p);
     }
 
     private Parent startGame() {
@@ -406,14 +403,17 @@ public class Gomoku extends Application{
                 thread = new Thread(() -> {
                     while (Constants.gameStarted && !endThread) {
                         if (ai1.getColor() == color) {
-                            letAiMove(ai1);
+                            Platform.runLater(() ->
+                                    letAiMove(ai1));
                         }
                         else {
-                            letAiMove(ai2);
+                            Platform.runLater(() ->
+                                    letAiMove(ai2));
                         }
 
                         if (Constants.gameStarted) {
-                            switchColor();
+                            Platform.runLater(() ->
+                                    switchColor());
                         }
 
                         try {
@@ -422,7 +422,7 @@ public class Gomoku extends Application{
                         catch (InterruptedException ie) {
                             ie.printStackTrace();
                             Platform.runLater(() ->
-                                lblTxt.setText("Something went wrong with AI thread."));
+                                    lblTxt.setText("Something went wrong with AI thread."));
                         }
                     }
                 });
@@ -499,11 +499,13 @@ public class Gomoku extends Application{
 
     private void btnLoadFunc() {
         FileChooser fc = new FileChooser();
-        fc.setInitialDirectory(new File(System.getProperty("user.dir")));
+        //fc.setInitialDirectory(new File(System.getProperty("user.dir")));
         fc.setTitle("Load Replay");
         fc.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
         File selectedFile = fc.showOpenDialog(null);
         if (selectedFile != null) {
+            //Constants.gameStarted = true;
+            Pieces.getInstance().clearPieces();
             clearAndDrawBoard();
             btnStart.setDisable(true);
             btnMode.setDisable(true);
@@ -521,13 +523,13 @@ public class Gomoku extends Application{
                             case 1: {
                                 final String txt1 = tempStr;
                                 Platform.runLater(() ->
-                                    lblTxt.setText("(Black)" + txt1));
+                                        lblTxt.setText("(Black)" + txt1));
                                 break;
                             }
                             case 2: {
                                 final String txt2 = tempStr;
                                 Platform.runLater(() ->
-                                    lblTxt.setText(lblTxt.getText() + "\n\n(White)" + txt2));
+                                        lblTxt.setText(lblTxt.getText() + "\n\n(White)" + txt2));
                                 break;
                             }
                             default: {
@@ -540,9 +542,22 @@ public class Gomoku extends Application{
                                 else {
                                     tempColor = -1;
                                 }
-                                Platform.runLater(() -> {
-                                    drawPiece(new PieceInfo(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor));
-                                });
+
+                                final PieceInfo tempPi = new PieceInfo(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor);
+                                if (Pieces.getInstance().setPieceValue(tempPi)) {
+                                    Platform.runLater(() -> {
+                                        drawPiece(tempPi);
+                                        int checkResult = Referee.checkWinningCondition(tempPi);
+                                        if (checkResult != 0) {
+                                            playWinningAnimation(checkResult);
+                                        }
+                                    });
+                                }
+                                else {
+                                    Platform.runLater(() ->
+                                            lblTxt.setText("Replay has been damaged."));
+                                    endThread = true;
+                                }
                                 break;
                             }
                         }
@@ -551,13 +566,8 @@ public class Gomoku extends Application{
                     }
                     reader.close();
                 }
-                catch (IOException ioe) {
-                    ioe.printStackTrace();
-                    Platform.runLater(() ->
-                            lblTxt.setText("Something goes wrong with the file. \nFailed to load replay."));
-                }
-                catch (InterruptedException ie) {
-                    ie.printStackTrace();
+                catch (Exception ex1) {
+                    ex1.printStackTrace();
                     Platform.runLater(() ->
                             lblTxt.setText("Something goes wrong with the file. \nFailed to load replay."));
                 }
@@ -566,17 +576,19 @@ public class Gomoku extends Application{
                         try {
                             reader.close();
                         }
-                        catch (IOException e1) {
-                            e1.printStackTrace();
+                        catch (IOException ex2) {
+                            ex2.printStackTrace();
                         }
                     }
                 }
 
-                Platform.runLater(() -> lblTxt.setText(lblTxt.getText() + "\n\nReplay finished."));
+                Platform.runLater(() ->
+                        lblTxt.setText(lblTxt.getText() + "\n\nReplay finished."));
                 btnStart.setDisable(false);
                 btnMode.setDisable(false);
                 sldSize.setDisable(false);
-                btnLoad.setText("Load");
+                Platform.runLater(() ->
+                        btnLoad.setText("Load"));
             });
             endThread = false;
             thread.start();
@@ -644,7 +656,6 @@ public class Gomoku extends Application{
                 sb.append(aiMove.getX()).append(" ").append(aiMove.getY()).append("\n");
             }
         }
-
 
         lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move");
         int checkResult = Referee.checkWinningCondition(aiMove);
