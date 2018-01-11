@@ -9,8 +9,8 @@ import java.util.ArrayList;
 public class AI_Herald implements AiMove {
     private final int color;
     private QueryPieces pieces = null;
-    private int[][] p; // analog pieces
-    private int[][] pScore;
+    private final int[][] p; // analog pieces
+    private final int[][] pScore;
 
     // searchZone's diameter = [(highestX + border) - (lowestX - border)] * [(highestY + border) - (lowestY - border)]
     private final int searchZoneBorder = 3;
@@ -610,8 +610,8 @@ public class AI_Herald implements AiMove {
     }
 
     class Combo {
-        int length;
-        int quality; // 0: no side open, 1: one side open, 2: both side open
+        final int length;
+        final int quality; // 0: no side open, 1: one side open, 2: both side open
 
         Combo(int length, int quality) {
             this.length = length;

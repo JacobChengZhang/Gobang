@@ -167,9 +167,8 @@ public class Gomoku extends Application{
 
         btnMode = new Button(Constants.getMode().toString());
         btnMode.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
-        btnMode.setOnMouseClicked(event -> {
-            btnModeFunc();
-        });
+        btnMode.setOnMouseClicked(event ->
+                btnModeFunc());
 
         lblSize = new Label("Size: " + Constants.getOrder());
         lblSize.setWrapText(true);
@@ -188,9 +187,8 @@ public class Gomoku extends Application{
         btnSave = new Button("Save");
         btnSave.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
         btnSave.setDisable(true);
-        btnSave.setOnMouseClicked(event -> {
-            btnSaveFunc();
-        });
+        btnSave.setOnMouseClicked(event ->
+                btnSaveFunc());
 
         btnLoad = new Button("Load");
         btnLoad.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
@@ -209,9 +207,8 @@ public class Gomoku extends Application{
         btnRetract = new Button("Retract");
         btnRetract.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
         btnRetract.setDisable(true);
-        btnRetract.setOnMouseClicked(event -> {
-            btnRetractFunc();
-        });
+        btnRetract.setOnMouseClicked(event ->
+                btnRetractFunc());
 
         Separator sp4 = new Separator(Orientation.HORIZONTAL);
 
@@ -472,8 +469,7 @@ public class Gomoku extends Application{
                         }
 
                         if (Constants.gameStarted) {
-                            Platform.runLater(() ->
-                                    switchColor());
+                            Platform.runLater(this::switchColor);
                         }
 
                         try {
@@ -549,7 +545,7 @@ public class Gomoku extends Application{
         String date = df.format(new Date());
 
         try {
-            OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(new StringBuilder().append("./replay/").append(date.replaceAll(":", "_")).append(".txt").toString()), "utf-8");
+            OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream("./replay/" + date.replaceAll(":", "_") + ".txt"), "utf-8");
             writer.write(sb.toString());
             writer.close();
         }
