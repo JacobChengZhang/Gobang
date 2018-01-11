@@ -117,7 +117,7 @@ public class Gomoku extends Application{
         root.getChildren().add(paneButton);
     }
 
-    private void clearAndDrawBoard() {
+    private void clearAndRedrawBoard() {
         // clear board first
         Rectangle rectClear = new Rectangle(paneWidth, paneBoardHeight);
         rectClear.setFill(Color.WHITE);
@@ -144,7 +144,7 @@ public class Gomoku extends Application{
             for (int y = 0; y < Constants.getOrder(); y++) {
                 int tempColor = Pieces.getInstance().getPieceValue(x, y);
                 if (tempColor != 0) {
-                    drawPiece(new PieceInfo(x, y, tempColor));
+                    drawPiece(new PieceInfo(x, y, tempColor), false);
                 }
             }
         }
@@ -178,7 +178,7 @@ public class Gomoku extends Application{
         sldSize.valueProperty().addListener((ov, old_val, new_val) -> {
             if ((new_val.intValue() != Constants.getOrder()) && (new_val.intValue() % 2 != 0)) {
                 Constants.setOrder(new_val.intValue());
-                clearAndDrawBoard();
+                clearAndRedrawBoard();
                 lblSize.setText("Size: " + new_val.intValue());
             }
         });
@@ -239,7 +239,11 @@ public class Gomoku extends Application{
         paneBoard.getChildren().add(dot);
     }
 
-    private void drawPiece(PieceInfo pi) {
+    private void drawPiece(PieceInfo pi, boolean isNew) {
+        if (isNew) {
+            clearAndRedrawBoard();
+        }
+
         Circle p = new Circle();
         p.setCenterX(calcPieceCoordinate(pi.getX()));
         p.setCenterY(calcPieceCoordinate(pi.getY()));
@@ -254,12 +258,32 @@ public class Gomoku extends Application{
         p.setStroke(Color.BLACK);
 
         paneBoard.getChildren().add(p);
+
+        if (isNew) {
+            Circle redDot = new Circle();
+            redDot.setCenterX(calcPieceCoordinate(pi.getX()));
+            redDot.setCenterY(calcPieceCoordinate(pi.getY()));
+
+//            // red ring style
+//            redDot.setRadius(Constants.pieceRadius);
+//            redDot.setFill(Color.TRANSPARENT);
+//            redDot.setStrokeWidth(Constants.lineWidth * 3);
+//            redDot.setStroke(Color.RED);
+
+            // red dot style
+            redDot.setRadius(Constants.pieceRadius / 4);
+            redDot.setFill(Color.RED);
+            redDot.setStrokeWidth(Constants.lineWidth);
+            redDot.setStroke(Color.RED);
+
+            paneBoard.getChildren().add(redDot);
+        }
     }
 
     private Parent startGame() {
         createPane();
 
-        clearAndDrawBoard();
+        clearAndRedrawBoard();
 
         addControlButton();
 
@@ -376,7 +400,7 @@ public class Gomoku extends Application{
 
     private void btnStartFunc() {
         Pieces.getInstance().clearPieces();
-        clearAndDrawBoard();
+        clearAndRedrawBoard();
         Constants.gameStarted = true;
         sldSize.setDisable(true);
         btnMode.setDisable(true);
@@ -478,7 +502,7 @@ public class Gomoku extends Application{
 
         if (clearPieces) {
             Pieces.getInstance().clearPieces();
-            clearAndDrawBoard();
+            clearAndRedrawBoard();
             lblTxt.setText("");
             sb = null;
             btnSave.setDisable(true);
@@ -544,7 +568,7 @@ public class Gomoku extends Application{
         if (selectedFile != null) {
             //Constants.gameStarted = true;
             Pieces.getInstance().clearPieces();
-            clearAndDrawBoard();
+            clearAndRedrawBoard();
             btnStart.setDisable(true);
             btnMode.setDisable(true);
             sldSize.setDisable(true);
@@ -585,7 +609,7 @@ public class Gomoku extends Application{
                                 if (Pieces.getInstance().setPieceValue(tempPi)) {
 
                                     Platform.runLater(() -> {
-                                        drawPiece(tempPi);
+                                        drawPiece(tempPi, true);
                                         int checkResult = Referee.checkWinningCondition(tempPi);
                                         if (checkResult != 0) {
                                             playWinningAnimation(checkResult);
@@ -645,7 +669,7 @@ public class Gomoku extends Application{
         }
 
         if (Pieces.getInstance().retract()) {
-            clearAndDrawBoard();
+            clearAndRedrawBoard();
 
             switch (Constants.getMode()) {
                 case PvAI: {
@@ -719,7 +743,7 @@ public class Gomoku extends Application{
                 isMoveValid = true;
                 Pieces.getInstance().setPieceValue(aiMove);
                 Pieces.getInstance().recordPieceForRetract(aiMove);
-                drawPiece(aiMove);
+                drawPiece(aiMove, true);
 
                 sb.append(aiMove.getX()).append(" ").append(aiMove.getY()).append("\n");
             }
@@ -739,7 +763,7 @@ public class Gomoku extends Application{
             PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
             if (Pieces.getInstance().setPieceValue(tempPi)) {
                 Pieces.getInstance().recordPieceForRetract(tempPi);
-                drawPiece(tempPi);
+                drawPiece(tempPi, true);
 
                 sb.append(tempPi.getX()).append(" ").append(tempPi.getY()).append("\n");
 
