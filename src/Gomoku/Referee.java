@@ -21,7 +21,7 @@ public class Referee {
         }
     }
 
-    static boolean checkIfBlankExist() {
+    private static boolean checkIfBlankExist() {
         for (int x = 0; x < Constants.getOrder(); x++) {
             for (int y = 0; y < Constants.getOrder(); y++) {
                 if (Pieces.getInstance().getPieceValue(x, y) == 0) {
@@ -32,7 +32,7 @@ public class Referee {
         return false;
     }
 
-    static boolean checkHorizontallyAndVertically(PieceInfo pi) {
+    private static boolean checkHorizontallyAndVertically(PieceInfo pi) {
         int pX = pi.getX();
         int pY = pi.getY();
         int pC = pi.getColor();
@@ -71,7 +71,7 @@ public class Referee {
         return false;
     }
 
-    static boolean checkDiagonal(PieceInfo pi) {
+    private static boolean checkDiagonal(PieceInfo pi) {
         int pX = pi.getX();
         int pY = pi.getY();
         int pC = pi.getColor();

@@ -1,5 +1,7 @@
 package Gomoku;
 
+import java.util.Stack;
+
 public class Pieces implements QueryPieces{
     private static Pieces pieces = null;
 
@@ -7,11 +9,8 @@ public class Pieces implements QueryPieces{
     // 1: white   0:nil    -1:black
     private int[][] p;
 
-    // TODO infinitely refract
-    // piece info for retracting
-    // PvP mode can refract for one move, PvAI mode can refract two (retractPi2 is always null in PvP mode)
-    private PieceInfo retractPi1 = null;
-    private PieceInfo retractPi2 = null;
+    // piece info stack for retract in both PvAI and PvP mode
+    private Stack<PieceInfo> retractStack = new Stack<>();
 
     private PieceInfo winningPi1 = null;
     private PieceInfo winningPi2 = null;
@@ -50,66 +49,80 @@ public class Pieces implements QueryPieces{
     private void resetPieceValue(int x, int y) {
         if (x >= 0 && x < Constants.getOrder() && y >= 0 && y < Constants.getOrder()) {
             p[x][y] = 0;
+            //also make winningPi disappear
+            setWinningPieceInfo(null, null);
         }
     }
 
-    void recordPieceForRetract(PieceInfo pi) {
+    void piecePushStack(PieceInfo pi) {
         if (pi == null) {
             return;
         }
 
+        retractStack.push(pi);
+    }
+
+    /**
+     * @return PieceInfo that should be redraw(for the red dot in it)
+     */
+    PieceInfo retract() throws Exception{
+        if (retractStack.empty()) {
+            throw new Exception("empty stack");
+        }
+
         switch (Constants.getMode()) {
             case PvAI: {
-                if (retractPi1 == null) {
-                    retractPi1 = pi;
+                if (retractStack.peek().isAiMade()) {
+                    if (retractStack.size() == 1) {
+                        throw new Exception("Can not retract anymore.");
+                    }
+                    else {
+                        PieceInfo tempPi = retractStack.pop();
+                        resetPieceValue(tempPi.getX(), tempPi.getY());
+                    }
                 }
-                else if (retractPi2 == null) {
-                    retractPi2 = pi;
+
+                if (retractStack.empty()) {
+                    return null;
                 }
                 else {
-                    retractPi1 = retractPi2;
-                    retractPi2 = pi;
+                    PieceInfo tempPi = retractStack.pop();
+                    resetPieceValue(tempPi.getX(), tempPi.getY());
+
+                    if (retractStack.empty()) {
+                        return null;
+                    }
+                    else {
+                        return retractStack.peek();
+                    }
                 }
-                break;
             }
             case PvP: {
-                retractPi1 = pi;
-                break;
+                PieceInfo tempPi = retractStack.pop();
+                resetPieceValue(tempPi.getX(), tempPi.getY());
+
+                if (retractStack.empty()) {
+                    return null;
+                }
+                else {
+                    return retractStack.peek();
+                }
             }
             default: {
-                break;
+                throw new Exception("Caught a bug in retract module.");
             }
         }
     }
 
-    boolean retract() {
-        if (retractPi1 == null) {
-            return false;
+    void getReplayData(StringBuilder sb) {
+        if (retractStack.empty()) {
+            return;
         }
 
-        switch (Constants.getMode()) {
-            case PvAI: {
-                if (retractPi2 == null) {
-                    return false;
-                }
-                resetPieceValue(retractPi1.getX(), retractPi1.getY());
-                resetPieceValue(retractPi2.getX(), retractPi2.getY());
-                retractPi1 = null;
-                retractPi2 = null;
-                break;
-            }
-            case PvP: {
-                resetPieceValue(retractPi1.getX(), retractPi1.getY());
-                retractPi1 = null;
-                break;
-            }
-            default: {
-                System.out.println("Caught a bug in btnRetractFunc.");
-                break;
-            }
+        for(int i = 0; i < retractStack.size(); i++) {
+            PieceInfo tempPi = retractStack.elementAt(i);
+            sb.append(tempPi.getX()).append(" ").append(tempPi.getY()).append("\n");
         }
-
-        return true;
     }
 
     void setWinningPieceInfo(PieceInfo pi1, PieceInfo pi2) {
@@ -131,9 +144,7 @@ public class Pieces implements QueryPieces{
 
     void clearPieces() {
         this.p = new int[Constants.getOrder()][Constants.getOrder()];
-        retractPi1 = null;
-        retractPi2 = null;
-        winningPi1 = null;
-        winningPi2 = null;
+        retractStack.clear();
+        setWinningPieceInfo(null, null);
     }
 }

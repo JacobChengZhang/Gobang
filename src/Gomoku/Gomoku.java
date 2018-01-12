@@ -1,7 +1,6 @@
 package Gomoku;
 
 import AI.AI_Guardian;
-import AI.AI_Herald;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -60,10 +59,6 @@ public class Gomoku extends Application{
     private int ai2Color = 0;
 
 
-    // used for saving replay
-    private StringBuilder sb = null;
-
-
     // thread for AI trigger or Replay loading
     private Thread thread = null;
     private boolean endThread = false;
@@ -71,6 +66,10 @@ public class Gomoku extends Application{
 
     // -1:black    1: white
     private int color = -1;
+
+    // names of players
+    String playerWhite = null;
+    String playerBlack = null;
 
 
     public static void main(String[] args) {
@@ -242,7 +241,7 @@ public class Gomoku extends Application{
             clearAndRedrawBoard();
         }
 
-        Circle p = new Circle();
+        final Circle p = new Circle();
         p.setCenterX(calcPieceCoordinate(pi.getX()));
         p.setCenterY(calcPieceCoordinate(pi.getY()));
         p.setRadius(Constants.pieceRadius);
@@ -258,7 +257,7 @@ public class Gomoku extends Application{
         paneBoard.getChildren().add(p);
 
         if (isNew) {
-            Circle redDot = new Circle();
+            final Circle redDot = new Circle();
             redDot.setCenterX(calcPieceCoordinate(pi.getX()));
             redDot.setCenterY(calcPieceCoordinate(pi.getY()));
 
@@ -288,6 +287,12 @@ public class Gomoku extends Application{
         return root;
     }
 
+    private void terminateThread() {
+        while (thread != null && thread.getState() != Thread.State.TERMINATED) {
+            endThread = true;
+        }
+    }
+
     /**
      * @param result
      * 1    -> White wins
@@ -297,47 +302,9 @@ public class Gomoku extends Application{
      * -100 -> Draw game
      */
     private void finishGame(int result) {
-        while (thread != null && thread.getState() != Thread.State.TERMINATED) {
-            endThread = true;
-        }
+        terminateThread();
 
         playWinningAnimation(result);
-
-        String playerWhite = null;
-        String playerBlack = null;
-
-        switch (Constants.getMode()) {
-            case PvAI: {
-                if (ai1.getColor() == 1) {
-                    playerWhite = ai1.toString();
-                    playerBlack = "Human";
-                }
-                else {
-                    playerWhite = "Human";
-                    playerBlack = ai1.toString();
-                }
-                break;
-            }
-            case PvP: {
-                playerWhite = "Human";
-                playerBlack = "Human";
-                break;
-            }
-            case AIvAI: {
-                if (ai1.getColor() == 1) {
-                    playerWhite = ai1.toString();
-                    playerBlack = ai2.toString();
-                }
-                else {
-                    playerWhite = ai2.toString();
-                    playerBlack = ai1.toString();
-                }
-                break;
-            }
-            default: {
-                break;
-            }
-        }
 
         switch (result) {
             case 1: {
@@ -363,7 +330,7 @@ public class Gomoku extends Application{
             default: {
                 lblTxt.setText("Caught a bug in Referee.");
                 System.out.println("Caught a bug in Referee.");
-                System.exit(1);
+                //System.exit(1);
                 break;
             }
         }
@@ -402,7 +369,6 @@ public class Gomoku extends Application{
         Constants.gameStarted = true;
         sldSize.setDisable(true);
         btnMode.setDisable(true);
-        sb = new StringBuilder();
         btnSave.setDisable(false);
         btnLoad.setDisable(true);
         lblTxt.setText("Black Move");
@@ -420,8 +386,8 @@ public class Gomoku extends Application{
                 if (ran.nextInt(2) % 2 == 0) {
                     ai1 = tempAiBlack;
                     ai1Color = -1;
-
-                    sb.append(Constants.getOrder()).append("\n").append(ai1.toString()).append("\n").append("Human\n");
+                    playerBlack = ai1.toString();
+                    playerWhite = "Human";
 
                     // When AI_Herald first(white), switch Human's color and let AI_Herald make one move first
                     switchColor();
@@ -431,15 +397,15 @@ public class Gomoku extends Application{
                 else {
                     ai1 = tempAiWhite;
                     ai1Color = 1;
-
-                    sb.append(Constants.getOrder()).append("\n").append("Human\n").append(ai1.toString()).append("\n");
+                    playerBlack = "Human";
+                    playerWhite = ai1.toString();
                 }
                 break;
             }
             case PvP: {
                 btnRetract.setDisable(false);
-
-                sb.append(Constants.getOrder()).append("\n").append("Human\n").append("Human\n");
+                playerBlack = "Human";
+                playerWhite = "Human";
                 break;
             }
             case AIvAI: {
@@ -447,16 +413,21 @@ public class Gomoku extends Application{
                 if (ran.nextInt(2) % 2 == 0) {
                     ai1 = tempAiWhite;
                     ai1Color = 1;
+                    playerWhite = ai1.toString();
+
                     ai2 = tempAiBlack;
                     ai2Color = -1;
-                    sb.append(Constants.getOrder()).append("\n").append(ai2.toString()).append("\n").append(ai1.toString()).append("\n");
+                    playerBlack = ai2.toString();
+
                 }
                 else {
                     ai1 = tempAiBlack;
                     ai1Color = -1;
+                    playerBlack = ai1.toString();
+
                     ai2 = tempAiWhite;
                     ai2Color = 1;
-                    sb.append(Constants.getOrder()).append("\n").append(ai1.toString()).append("\n").append(ai2.toString()).append("\n");
+                    playerWhite = ai2.toString();
                 }
 
                 thread = new Thread(() -> {
@@ -470,9 +441,10 @@ public class Gomoku extends Application{
                                     letAiMove(ai2));
                         }
 
-                        if (Constants.gameStarted) {
-                            Platform.runLater(this::switchColor);
+                        if (Constants.gameStarted && !endThread) {
+                            Platform.runLater(() -> switchColor());
                         }
+
 
                         try {
                             Thread.sleep(Constants.aiThreadCycle);
@@ -494,25 +466,22 @@ public class Gomoku extends Application{
     }
 
     private void btnEndFunc(boolean clearPieces) {
-        while (thread != null && thread.getState() != Thread.State.TERMINATED) {
-            endThread = true;
-        }
+        terminateThread();
 
         if (clearPieces) {
             Pieces.getInstance().clearPieces();
             clearAndRedrawBoard();
             lblTxt.setText("");
-            sb = null;
             btnSave.setDisable(true);
             btnRetract.setDisable(true);
+            ai1 = null;
+            ai2 = null;
+            ai1Color = 0;
+            ai2Color = 0;
         }
 
         this.color = -1;
         Constants.gameStarted = false;
-        ai1 = null;
-        ai2 = null;
-        ai1Color = 0;
-        ai2Color = 0;
         sldSize.setDisable(false);
         btnMode.setDisable(false);
         btnLoad.setDisable(false);
@@ -543,6 +512,8 @@ public class Gomoku extends Application{
     }
 
     private void btnSaveFunc() {
+        // used for saving replay
+        StringBuilder sb = new StringBuilder();
         if (!Constants.gameStarted) {
             PieceInfo tempPi = Pieces.getInstance().getWinningPieceInfo(1);
             if (tempPi != null) {
@@ -555,9 +526,13 @@ public class Gomoku extends Application{
             }
         }
 
+        sb.append(Constants.getOrder()).append("\n").append("(Black) ").append(playerBlack).append("\n").append("(White) ").append(playerWhite).append("\n");
+
         SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String date = df.format(new Date());
         sb.insert(0, "// " + date + "\n");
+
+        Pieces.getInstance().getReplayData(sb);
 
         try {
             OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream("./replay/" + date.replaceAll(":", "_") + ".txt"), "utf-8");
@@ -575,7 +550,7 @@ public class Gomoku extends Application{
      * Comments that start with '//' and Blank line in replay files are supported which should not change the order of raw content.
      */
     private void btnLoadFunc() {
-        //TODO may add a feature "load and play"
+        //TODO may add a feature "load and play" and if so, must execute piecePushStack
 
         FileChooser fc = new FileChooser();
         //fc.setInitialDirectory(new File(System.getProperty("user.dir")));
@@ -618,13 +593,13 @@ public class Gomoku extends Application{
                             case 2: {
                                 final String txt1 = tempStr;
                                 Platform.runLater(() ->
-                                        lblTxt.setText("(Black)" + txt1));
+                                        lblTxt.setText(txt1));
                                 break;
                             }
                             case 3: {
                                 final String txt2 = tempStr;
                                 Platform.runLater(() ->
-                                        lblTxt.setText(lblTxt.getText() + "\n\n(White)" + txt2));
+                                        lblTxt.setText(lblTxt.getText() + "\n\n" + txt2));
                                 break;
                             }
                             default: {
@@ -702,15 +677,35 @@ public class Gomoku extends Application{
             return;
         }
 
-        if (Pieces.getInstance().retract()) {
-            clearAndRedrawBoard();
+        PieceInfo redrawPi;
+        try {
+            redrawPi = Pieces.getInstance().retract();
+        }
+        catch (Exception ex) {
+            lblTxt.setText(ex.getMessage());
+            return;
+        }
 
+        if (redrawPi != null) {
             switch (Constants.getMode()) {
                 case PvAI: {
+                    color = -redrawPi.getColor();
+                    if (color == -1) {
+                        lblTxt.setText("Black Move");
+                    }
+                    else {
+                        lblTxt.setText("White Move");
+                    }
                     break;
                 }
                 case PvP: {
-                    switchColor();
+                    color = -redrawPi.getColor();
+                    if (color == -1) {
+                        lblTxt.setText("Black Move");
+                    }
+                    else {
+                        lblTxt.setText("White Move");
+                    }
                     break;
                 }
                 default: {
@@ -718,9 +713,39 @@ public class Gomoku extends Application{
                     break;
                 }
             }
+
+            drawPiece(redrawPi, true);
+            Constants.gameStarted = true;
+            sldSize.setDisable(true);
+            btnMode.setDisable(true);
+            btnLoad.setDisable(true);
+            btnStart.setText("End");
+
+
         }
         else {
-            lblTxt.setText("Failed to retract.");
+            switch (Constants.getMode()) {
+                case PvAI: {
+                    color = -1;
+                    break;
+                }
+                case PvP: {
+                    color = -1;
+                    lblTxt.setText("Black Move");
+                    break;
+                }
+                default: {
+                    lblTxt.setText("Caught a bug in btnRetractFunc.");
+                    break;
+                }
+            }
+
+            clearAndRedrawBoard();
+            Constants.gameStarted = true;
+            sldSize.setDisable(true);
+            btnMode.setDisable(true);
+            btnLoad.setDisable(true);
+            btnStart.setText("End");
         }
     }
 
@@ -742,7 +767,7 @@ public class Gomoku extends Application{
         return validX && validY;
     }
 
-    static int calcPieceSeq(double meC) { // x or y coordinate -> sequence number in Pieces.p[][]
+    private static int calcPieceSeq(double meC) { // x or y coordinate -> sequence number in Pieces.p[][]
         int c = (int)(meC + 0.5);
         if ((c - Constants.getBorder()) % Constants.increment < Constants.increment / 3) {
             return (c - Constants.getBorder()) / Constants.increment;
@@ -752,7 +777,7 @@ public class Gomoku extends Application{
         }
     }
 
-    static double calcPieceCoordinate(int seq) {
+    private static double calcPieceCoordinate(int seq) {
         return (double)(seq * Constants.increment + Constants.getBorder());
     }
 
@@ -773,13 +798,11 @@ public class Gomoku extends Application{
             }
 
             aiMove = ai.nextMove();
-            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color) && aiMove.isAiMade()) {
                 isMoveValid = true;
                 Pieces.getInstance().setPieceValue(aiMove);
-                Pieces.getInstance().recordPieceForRetract(aiMove);
+                Pieces.getInstance().piecePushStack(aiMove);
                 drawPiece(aiMove, true);
-
-                sb.append(aiMove.getX()).append(" ").append(aiMove.getY()).append("\n");
             }
         }
 
@@ -794,12 +817,10 @@ public class Gomoku extends Application{
         if (checkMouseClick(me.getX(), me.getY())) {
             int seqX = calcPieceSeq(me.getX());
             int seqY = calcPieceSeq(me.getY());
-            PieceInfo tempPi = new PieceInfo(seqX, seqY, color);
+            PieceInfo tempPi = new PieceInfo(seqX, seqY, color, false);
             if (Pieces.getInstance().setPieceValue(tempPi)) {
-                Pieces.getInstance().recordPieceForRetract(tempPi);
+                Pieces.getInstance().piecePushStack(tempPi);
                 drawPiece(tempPi, true);
-
-                sb.append(tempPi.getX()).append(" ").append(tempPi.getY()).append("\n");
 
                 int checkResult = Referee.checkWinningCondition(tempPi);
                 if (checkResult != 0) {
@@ -821,7 +842,10 @@ public class Gomoku extends Application{
     }
 
     private void switchColor() {
-        // swap human player
+        if (!Constants.gameStarted) {
+            return;
+        }
+
         this.color = -this.color;
 
         if (this.color == 1) {

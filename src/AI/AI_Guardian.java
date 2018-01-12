@@ -65,7 +65,7 @@ public class AI_Guardian implements AiMove {
         p[3][2] = 1;
         p[4][2] = 0;
 
-        PieceInfo pi = new PieceInfo(2, 1, 1);
+        PieceInfo pi = PieceInfo.createAiPieceInfo(2, 1, 1);
         Combo combo1 = checkCombo(1, pi);
         Combo combo2= checkCombo(2, pi);
         Combo combo3= checkCombo(3, pi);
@@ -350,7 +350,7 @@ public class AI_Guardian implements AiMove {
         }
 
         if (pi.getColor() == color) { // this AI's move (significant)
-            return score + 20;
+            return (score + score / 4) ;
         }
         else {
             return score;
@@ -365,10 +365,10 @@ public class AI_Guardian implements AiMove {
         for (int x = szLowestX; x <= szHighestX; x++) {
             for (int y = szLowestY; y <= szHighestY; y++) {
                 if (p[x][y] == 0) {
-                    pScore[x][y] += evaluateOneMove(new PieceInfo(x, y, color));
+                    pScore[x][y] += evaluateOneMove(PieceInfo.createAiPieceInfo(x, y, color));
 
                     if (isForBothSide) {
-                        pScore[x][y] += evaluateOneMove(new PieceInfo(x, y, -color));
+                        pScore[x][y] += evaluateOneMove(PieceInfo.createAiPieceInfo(x, y, -color));
                     }
                 }
             }
@@ -392,7 +392,7 @@ public class AI_Guardian implements AiMove {
         // this step is necessary
         updateAnalogPieces(resultX, resultY);
 
-        return new PieceInfo(resultX, resultY, color);
+        return PieceInfo.createAiPieceInfo(resultX, resultY, color);
     }
 
     private boolean willThisMoveWin(PieceInfo pi) {
