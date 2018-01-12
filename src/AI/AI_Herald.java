@@ -196,7 +196,6 @@ public class AI_Herald implements AiMove {
     }
 
     private int evaluateOneMove(PieceInfo pi) {
-        // TODO parameters of score algorithm are better to be stored in file, which makes it be able to learn like a truly AI.
         int score = 0;
 
         Combo combo1 = checkCombo(1, pi);
@@ -226,7 +225,6 @@ public class AI_Herald implements AiMove {
         int highLength2 = arr.get(1).length;
         int quality2 = arr.get(1).quality;
 
-        // TODO needs to be re-organized
         switch (highLength1) {
             case 5: {
                 score += 1000;

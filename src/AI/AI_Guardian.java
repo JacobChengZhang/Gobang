@@ -235,7 +235,7 @@ public class AI_Guardian implements AiMove {
             case 4: {
                 switch (quality1) {
                     case 2: {
-                        score += 90;
+                        score += 200;
                         break;
                     }
                     case 1: {
@@ -296,7 +296,7 @@ public class AI_Guardian implements AiMove {
             case 4: {
                 switch (quality2) {
                     case 2: {
-                        score += 90;
+                        score += 200;
                         break;
                     }
                     case 1: {
@@ -350,7 +350,7 @@ public class AI_Guardian implements AiMove {
         }
 
         if (pi.getColor() == color) { // this AI's move (significant)
-            return score + 1;
+            return score + 20;
         }
         else {
             return score;

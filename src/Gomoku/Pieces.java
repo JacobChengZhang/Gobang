@@ -7,6 +7,7 @@ public class Pieces implements QueryPieces{
     // 1: white   0:nil    -1:black
     private int[][] p;
 
+    // TODO infinitely refract
     // piece info for retracting
     // PvP mode can refract for one move, PvAI mode can refract two (retractPi2 is always null in PvP mode)
     private PieceInfo retractPi1 = null;

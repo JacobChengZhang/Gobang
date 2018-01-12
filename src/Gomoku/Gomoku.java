@@ -407,6 +407,7 @@ public class Gomoku extends Application{
         btnLoad.setDisable(true);
         lblTxt.setText("Black Move");
         btnStart.setText("End");
+        color = -1;
 
         AiMove tempAiBlack = new AI_Guardian(-1, Pieces.getInstance());
         AiMove tempAiWhite = new AI_Guardian(1, Pieces.getInstance());
@@ -574,6 +575,8 @@ public class Gomoku extends Application{
      * Comments that start with '//' and Blank line in replay files are supported which should not change the order of raw content.
      */
     private void btnLoadFunc() {
+        //TODO may add a feature "load and play"
+
         FileChooser fc = new FileChooser();
         //fc.setInitialDirectory(new File(System.getProperty("user.dir")));
         fc.setTitle("Load Replay");
@@ -830,4 +833,4 @@ public class Gomoku extends Application{
     }
 }
 
-// TODO add Repentance
+// TODO add a game mode without GUI for AI to train themselves
