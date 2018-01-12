@@ -1,5 +1,6 @@
 package Gomoku;
 
+import AI.AI_Guardian;
 import AI.AI_Herald;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -25,6 +26,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 
 import java.io.*;
 import java.text.SimpleDateFormat;
@@ -407,13 +409,16 @@ public class Gomoku extends Application{
         lblTxt.setText("Black Move");
         btnStart.setText("End");
 
+        AiMove tempAiBlack = new AI_Guardian(-1, Pieces.getInstance());
+        AiMove tempAiWhite = new AI_Guardian(1, Pieces.getInstance());
+
         switch (Constants.getMode()) {
             case PvAI: {
                 btnRetract.setDisable(false);
 
                 Random ran = new Random();
                 if (ran.nextInt(2) % 2 == 0) {
-                    ai1 = new AI_Herald(-1, Pieces.getInstance());
+                    ai1 = tempAiBlack;
                     ai1Color = -1;
 
                     sb.append(Constants.getOrder()).append("\n").append(ai1.toString()).append("\n").append("Human\n");
@@ -424,7 +429,7 @@ public class Gomoku extends Application{
                     letAiMove(ai1);
                 }
                 else {
-                    ai1 = new AI_Herald(1, Pieces.getInstance());
+                    ai1 = tempAiWhite;
                     ai1Color = 1;
 
                     sb.append(Constants.getOrder()).append("\n").append("Human\n").append(ai1.toString()).append("\n");
@@ -439,21 +444,18 @@ public class Gomoku extends Application{
             }
             case AIvAI: {
                 Random ran = new Random();
-                int first = -1;
                 if (ran.nextInt(2) % 2 == 0) {
-                    first = -first;
-                }
-
-                ai1 = new AI_Herald(first, Pieces.getInstance());
-                ai1Color = first;
-
-                ai2 = new AI_Herald(-first, Pieces.getInstance());
-                ai2Color = -first;
-
-                if (ran.nextInt(2) % 2 == 0) {
+                    ai1 = tempAiWhite;
+                    ai1Color = 1;
+                    ai2 = tempAiBlack;
+                    ai2Color = -1;
                     sb.append(Constants.getOrder()).append("\n").append(ai2.toString()).append("\n").append(ai1.toString()).append("\n");
                 }
                 else {
+                    ai1 = tempAiBlack;
+                    ai1Color = -1;
+                    ai2 = tempAiWhite;
+                    ai2Color = 1;
                     sb.append(Constants.getOrder()).append("\n").append(ai1.toString()).append("\n").append(ai2.toString()).append("\n");
                 }
 
@@ -541,13 +543,27 @@ public class Gomoku extends Application{
     }
 
     private void btnSaveFunc() {
+        if (!Constants.gameStarted) {
+            PieceInfo tempPi = Pieces.getInstance().getWinningPieceInfo(1);
+            if (tempPi != null) {
+                if (tempPi.getColor() == -1) {
+                    sb.insert(0, "// Black wins\n\n");
+                }
+                else {
+                    sb.insert(0, "// White wins\n\n");
+                }
+            }
+        }
+
         SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String date = df.format(new Date());
+        sb.insert(0, "// " + date + "\n");
 
         try {
             OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream("./replay/" + date.replaceAll(":", "_") + ".txt"), "utf-8");
             writer.write(sb.toString());
             writer.close();
+            lblTxt.setText("Replay saved!\nNamed with time.");
         }
         catch (Exception ex) {
             lblTxt.setText("Unknown error. Failed to save.");
@@ -555,6 +571,9 @@ public class Gomoku extends Application{
         }
     }
 
+    /**
+     * Comments that start with '//' and Blank line in replay files are supported which should not change the order of raw content.
+     */
     private void btnLoadFunc() {
         FileChooser fc = new FileChooser();
         //fc.setInitialDirectory(new File(System.getProperty("user.dir")));
@@ -577,7 +596,11 @@ public class Gomoku extends Application{
                     reader = new BufferedReader(new FileReader(selectedFile));
                     String tempStr = null;
                     int line = 1;
-                    for ( ;(tempStr = reader.readLine()) != null && !endThread; line++) {
+                    for ( ;(tempStr = reader.readLine()) != null && !endThread; ) {
+                        if (tempStr.startsWith("//") || tempStr.equals("")) {
+                            continue;
+                        }
+
                         switch (line) {
                             case 1: {
                                 final int replayOrder = Integer.parseInt(tempStr);
@@ -633,6 +656,7 @@ public class Gomoku extends Application{
                             }
                         }
 
+                        line++;
                         Thread.sleep(Constants.loadThreadCycle);
                     }
                     reader.close();
