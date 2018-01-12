@@ -1,4 +1,5 @@
 /out/
 /.idea/
 /doc/
-/Gomoku.iml
+/replay/
+Gomoku.iml
