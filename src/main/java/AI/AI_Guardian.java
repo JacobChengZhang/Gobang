@@ -350,14 +350,14 @@ public class AI_Guardian implements AiMove {
         }
 
         if (pi.getColor() == color) { // this AI's move (significant)
-            return (score + score / 4) ;
+            return (score + 1) ;
         }
         else {
             return score;
         }
     }
 
-    private void evaluateAll(boolean isForBothSide) {
+    private void evaluateAll(boolean alsoForAdversary) {
         clearPScore();
 
         addPotentialField();
@@ -365,10 +365,16 @@ public class AI_Guardian implements AiMove {
         for (int x = szLowestX; x <= szHighestX; x++) {
             for (int y = szLowestY; y <= szHighestY; y++) {
                 if (p[x][y] == 0) {
-                    pScore[x][y] += evaluateOneMove(PieceInfo.createAiPieceInfo(x, y, color));
-
-                    if (isForBothSide) {
-                        pScore[x][y] += evaluateOneMove(PieceInfo.createAiPieceInfo(x, y, -color));
+                    int score1 = evaluateOneMove(PieceInfo.createAiPieceInfo(x, y, color));
+                    int score2 = 0;
+                    if (alsoForAdversary) {
+                        score2 = evaluateOneMove(PieceInfo.createAiPieceInfo(x, y, -color));
+                    }
+                    if (score1 >= score2) {
+                        pScore[x][y] += score1;
+                    }
+                    else {
+                        pScore[x][y] += score2;
                     }
                 }
             }

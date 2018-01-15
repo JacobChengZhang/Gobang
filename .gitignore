@@ -1,5 +1,6 @@
 /out/
+/.gradle/
 /.idea/
+/gradle/
 /doc/
 /replay/
-Gomoku.iml
