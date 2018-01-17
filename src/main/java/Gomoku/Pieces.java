@@ -19,7 +19,7 @@ public class Pieces implements QueryPieces{
         this.p = new int[Constants.getOrder()][Constants.getOrder()];
     }
 
-    static Pieces getInstance() {
+    public static Pieces getInstance() {
         if (pieces == null || pieces.p.length != Constants.getOrder()) {
             pieces = new Pieces();
         }

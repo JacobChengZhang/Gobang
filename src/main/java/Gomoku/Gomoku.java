@@ -1,6 +1,7 @@
 package Gomoku;
 
 import AI.AI_Guardian;
+import AI.AI_Herald;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -30,6 +31,7 @@ import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 
 public class Gomoku extends Application{
     // UI elements
@@ -290,6 +292,7 @@ public class Gomoku extends Application{
     private void terminateThread() {
         while (thread != null && thread.getState() != Thread.State.TERMINATED) {
             endThread = true;
+            thread.interrupt();
         }
     }
 
@@ -433,27 +436,26 @@ public class Gomoku extends Application{
                 thread = new Thread(() -> {
                     while (Constants.gameStarted && !endThread) {
                         if (ai1.getColor() == color) {
-                            Platform.runLater(() ->
+                            runAndWait(() ->
                                     letAiMove(ai1));
                         }
                         else {
-                            Platform.runLater(() ->
+                            runAndWait(() ->
                                     letAiMove(ai2));
                         }
 
                         if (Constants.gameStarted && !endThread) {
-                            Platform.runLater(() -> switchColor());
+                            runAndWait(() -> switchColor());
                         }
 
-
-                        try {
-                            Thread.sleep(Constants.aiThreadCycle);
-                        }
-                        catch (InterruptedException ie) {
-                            ie.printStackTrace();
-                            Platform.runLater(() ->
-                                    lblTxt.setText("Something went wrong with AI thread."));
-                        }
+//                        try {
+//                            Thread.sleep(Constants.aiThreadCycle);
+//                        }
+//                        catch (InterruptedException ie) {
+//                            ie.printStackTrace();
+//                            Platform.runLater(() ->
+//                                    lblTxt.setText("Something went wrong with AI thread."));
+//                        }
                     }
                 });
                 endThread = false;
@@ -749,6 +751,33 @@ public class Gomoku extends Application{
         }
     }
 
+    public static void runAndWait(Runnable action) {
+        if (action == null)
+            throw new NullPointerException("action");
+
+        // run synchronously on JavaFX thread
+        if (Platform.isFxApplicationThread()) {
+            action.run();
+            return;
+        }
+
+        // queue on JavaFX thread and wait for completion
+        final CountDownLatch doneLatch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            try {
+                action.run();
+            } finally {
+                doneLatch.countDown();
+            }
+        });
+
+        try {
+            doneLatch.await();
+        } catch (InterruptedException e) {
+            // ignore exception
+        }
+    }
+
     private static boolean checkMouseClick(double meX, double meY) {
         // A valid click should both satisfy (x, y coordinate close to gridPoint) and (the gridPoint has no piece on it)
 
@@ -797,8 +826,15 @@ public class Gomoku extends Application{
                 return;
             }
 
-            aiMove = ai.nextMove();
-            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color) && aiMove.isAiMade()) {
+            try {
+                aiMove = ai.nextMove();
+            }
+            catch(Exception ex) {
+                ex.printStackTrace();
+                continue;
+            }
+
+            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
                 isMoveValid = true;
                 Pieces.getInstance().setPieceValue(aiMove);
                 Pieces.getInstance().piecePushStack(aiMove);

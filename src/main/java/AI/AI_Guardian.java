@@ -12,6 +12,15 @@ public class AI_Guardian implements AiMove {
     private final int[][] p; // analog pieces
     private final int[][] pScore;
 
+    private final int depth = 3; // include 0
+    private final int breadth = 10;
+    private ScoredPieceInfo bestMove = null;
+
+    int lowestX = -1;
+    int highestX = -1;
+    int lowestY = -1;
+    int highestY = -1;
+
     // searchZone's diameter = [(highestX + border) - (lowestX - border)] * [(highestY + border) - (lowestY - border)]
     private final int searchZoneBorder = 3;
     private int szLowestX = 0;
@@ -26,6 +35,19 @@ public class AI_Guardian implements AiMove {
         this.pScore = new int[Constants.getOrder()][Constants.getOrder()];
     }
 
+    private void score_module_test() {
+        makeOneMove(10, 2, color);
+        makeOneMove(9, 3, color);
+        makeOneMove(8, 4, color);
+
+        makeOneMove(7, 6, color);
+        makeOneMove(6, 7, color);
+        makeOneMove(5, 8, color);
+        makeOneMove(4, 9, color);
+        updateSearchZone();
+        System.out.println(checkBackDiagonally(color));
+    }
+
     @Override
     public int getColor() {
         return color;
@@ -35,46 +57,115 @@ public class AI_Guardian implements AiMove {
     public PieceInfo nextMove() {
         // this is a attempt move, will be checked before take effect
 
-        //aiTest();
         updateAnalogPieces();
         updateSearchZone();
-        evaluateAll(true);
-        return makeDecision();
+
+        clearPScore();
+
+        //score_module_test();
+        if(!checkIfPieceExist()) {
+            return PieceInfo.createAiPieceInfo((Constants.getOrder() - 1) / 2, (Constants.getOrder() - 1) / 2, color);
+        }
+
+        alphaBeta(this.depth, Integer.MIN_VALUE, Integer.MAX_VALUE, true);
+
+        return PieceInfo.createAiPieceInfo(bestMove.x, bestMove.y, color);
     }
 
-    private void aiTest() {
-        /*
-        oiioo
-        oiiii
-        oioio
-         */
+    private int alphaBeta(int depth, int alpha, int beta, boolean isMaximizingPlayer) {
+        if (depth == 0 || !checkIfBlankExist()) {
+            return evaluate();
+        }
 
-        p[0][0] = 0;
-        p[1][0] = 1;
-        p[2][0] = 1;
-        p[3][0] = 0;
-        p[4][0] = 0;
-        p[0][1] = 0;
-        p[1][1] = 1;
-        p[2][1] = 0;
-        p[3][1] = 1;
-        p[4][1] = 1;
-        p[0][2] = 0;
-        p[1][2] = 1;
-        p[2][2] = 0;
-        p[3][2] = 1;
-        p[4][2] = 0;
+        if (isMaximizingPlayer) {
+            int v = Integer.MIN_VALUE;
 
-        PieceInfo pi = PieceInfo.createAiPieceInfo(2, 1, 1);
-        Combo combo1 = checkCombo(1, pi);
-        Combo combo2= checkCombo(2, pi);
-        Combo combo3= checkCombo(3, pi);
-        Combo combo4 = checkCombo(4, pi);
+            ArrayList<ScoredPieceInfo> moveList = generateLegalMoves(this.color);
+            for (int i = 0; i < moveList.size(); i++) {
+                ScoredPieceInfo spi = moveList.get(i);
+                makeOneMove(spi.x, spi.y, spi.color);
+                updateSearchZone();
 
-        System.out.println(combo1.length + " " + combo1.quality);
-        System.out.println(combo2.length + " " + combo2.quality);
-        System.out.println(combo3.length + " " + combo3.quality);
-        System.out.println(combo4.length + " " + combo4.quality);
+                int result = alphaBeta(depth - 1, alpha, beta, false);
+                if (depth == this.depth && v < result) {
+                    bestMove = spi;
+                }
+                if (v < result) {
+                    v = result;
+                }
+
+                undoOneMove(spi.x, spi.y);
+                updateSearchZone();
+
+                alpha = Integer.max(alpha, v);
+                if (beta <= alpha) {
+                    break;
+                }
+            }
+
+            return v;
+        }
+        else {
+            int v = Integer.MAX_VALUE;
+
+            ArrayList<ScoredPieceInfo> moveList = generateLegalMoves(-this.color);
+            for (int i = 0; i < moveList.size(); i++) {
+                ScoredPieceInfo spi = moveList.get(i);
+                makeOneMove(spi.x, spi.y, spi.color);
+                updateSearchZone();
+
+                v = Integer.min(v, alphaBeta(depth - 1, alpha, beta, true));
+
+                undoOneMove(spi.x, spi.y);
+                updateSearchZone();
+
+                beta = Integer.min(beta, v);
+                if (beta <= alpha) {
+                    break;
+                }
+            }
+
+            return v;
+        }
+    }
+
+    private int evaluate() {
+        return evaluateOneSide(true) / 2 - evaluateOneSide(false);
+    }
+
+    private int evaluateOneSide(boolean aiItself) {
+        int score = 0;
+        int color;
+        if (aiItself) {
+            color = this.color;
+        }
+        else {
+            color = -this.color;
+        }
+
+        score += (checkHorizontally(color) + checkVertically(color) + checkDiagonally(color) + checkBackDiagonally(color));
+        return score;
+    }
+
+    private ArrayList<ScoredPieceInfo> generateLegalMoves(int color) {
+        ArrayList<ScoredPieceInfo> moveList = new ArrayList<>();
+        for (int x = szLowestX; x <= szHighestX; x++) {
+            for (int y = szLowestY; y <= szHighestY; y++) {
+                if (p[x][y] == 0) {
+                    //moveList.add(new ScoredPieceInfo(x, y, color, evaluateOneMove(x, y, color)));
+                    moveList.add(new ScoredPieceInfo(x, y, color, 0));
+                }
+            }
+        }
+        return moveList;
+    }
+
+    private void makeOneMove(int x, int y, int color) {
+        p[x][y] = color;
+    }
+
+    private void undoOneMove(int x, int y) {
+        p[x][y] = 0;
     }
 
     private void updateAnalogPieces() {
@@ -89,18 +180,8 @@ public class AI_Guardian implements AiMove {
         }
     }
 
-    private void updateAnalogPieces(int i, int j) {
-        // update current move
-
-        p[i][j] = color;
-    }
-
     private void updateSearchZone() {
         if (checkIfPieceExist()) {
-            int lowestX = -1;
-            int highestX = -1;
-            int lowestY = -1;
-            int highestY = -1;
             boolean initialized = false;
 
             for (int x = 0; x < Constants.getOrder(); x++) {
@@ -177,232 +258,294 @@ public class AI_Guardian implements AiMove {
         }
     }
 
-    private void addPotentialRing(int order) {
-        for (int i = order; i <= Constants.getOrder() - 1 - order; i++) {
-            pScore[i][order] = order;
-            pScore[i][Constants.getOrder() - 1 - order] = order;
+    private int scoreCombo(int length, int quality) {
+        int score = 0;
+        switch (length) {
+            case 5: {
+                score += 100000;
+                break;
+            }
+            case 4: {
+                switch (quality) {
+                    case 2: {
+                        score += 10000;
+                        break;
+                    }
+                    case 1: {
+                        score += 4000;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 3: {
+                switch (quality) {
+                    case 2: {
+                        score += 4000;
+                        break;
+                    }
+                    case 1: {
+                        score += 1000;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 2: {
+                switch (quality) {
+                    case 2: {
+                        score += 100;
+                        break;
+                    }
+                    case 1: {
+                        score += 10;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            default: {
+                if (length > 5) {
+                    score += 100000;
+                }
+                break;
+            }
         }
 
-        for (int i = order + 1; i <= Constants.getOrder() - 2 - order; i++) {
-            pScore[order][i] = order;
-            pScore[Constants.getOrder() - 1 - order][i] = order;
-        }
+        return score;
     }
 
-    private void addPotentialField() {
-        for (int i = 0; i < (Constants.getOrder() + 1) / 2; i++) {
-            addPotentialRing(i);
+    private int checkHorizontally(int color) {
+        int score = 0;
+        for (int y = lowestY; y <= highestY; y++) {
+            for (int x = lowestX; x <= highestX; ) {
+                if(p[x][y] != color) {
+                    x++;
+                }
+                else {
+                    int length = 0;
+                    int quality = 0;
+                    length++;
+                    if (checkPieceValidity(x - 1, y)) {
+                        quality++;
+                    }
+                    x++;
+
+                    while (x <= highestX && y <= highestY && p[x][y] == color) {
+                        length++;
+                        x++;
+                    }
+
+                    if (checkPieceValidity(x, y)) {
+                        quality++;
+                    }
+
+                    score += scoreCombo(length, quality);
+                }
+            }
         }
+
+        return score;
     }
 
-    private int evaluateOneMove(PieceInfo pi) {
-        // TODO parameters of score algorithm are better to be stored in file, which makes it be able to learn like a truly AI.
+    private int checkVertically(int color) {
+        int score = 0;
+        for (int x = lowestX; x <= highestX; x++) {
+            for (int y = lowestY; y <= highestY; ) {
+                if (p[x][y] != color) {
+                    y++;
+                }
+                else {
+                    int length = 0;
+                    int quality = 0;
+                    length++;
+                    if (checkPieceValidity(x, y - 1)) {
+                        quality++;
+                    }
+                    y++;
+
+                    while (x <= highestX && y <= highestY && p[x][y] == color) {
+                        length++;
+                        y++;
+                    }
+
+                    if (checkPieceValidity(x, y)) {
+                        quality++;
+                    }
+
+                    score += scoreCombo(length, quality);
+                }
+            }
+        }
+
+        return score;
+    }
+
+    private int checkDiagonally(int color) {
         int score = 0;
 
-        Combo combo1 = checkCombo(1, pi);
-        Combo combo2 = checkCombo(2, pi);
-        Combo combo3 = checkCombo(3, pi);
-        Combo combo4 = checkCombo(4, pi);
+        int x1 = lowestX;
+        int y1 = Integer.max(0, highestY - 2);
+        for ( ; y1 >= lowestY; y1--) {
+            int x = x1;
+            int y = y1;
 
-        ArrayList<Combo> arr = new ArrayList<>();
-        arr.add(combo1);
-        arr.add(combo2);
-        arr.add(combo3);
-        arr.add(combo4);
-
-        arr.sort((o1, o2) -> {
-            if (o1.length > o2.length) {
-                return -1;
-            } else if (o1.length < o2.length) {
-                return 1;
-            } else {
-                return Integer.compare(o2.quality, o1.quality);
-            }
-        });
-
-        int highLength1 = arr.get(0).length;
-        int quality1 = arr.get(0).quality;
-
-        int highLength2 = arr.get(1).length;
-        int quality2 = arr.get(1).quality;
-
-        // TODO needs to be re-organized
-        switch (highLength1) {
-            case 5: {
-                score += 1000;
-                break;
-            }
-            case 4: {
-                switch (quality1) {
-                    case 2: {
-                        score += 200;
-                        break;
-                    }
-                    case 1: {
-                        score += 50;
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
+            while (x <= highestX && y <= highestY) {
+                if (p[x][y] != color) {
+                    x++;
+                    y++;
                 }
-                break;
-            }
-            case 3: {
-                switch (quality1) {
-                    case 2: {
-                        score += 40;
-                        break;
+                else {
+                    int length = 0;
+                    int quality = 0;
+                    length++;
+                    if (checkPieceValidity(x - 1, y - 1)) {
+                        quality++;
                     }
-                    case 1: {
-                        score += 30;
-                        break;
+                    x++;
+                    y++;
+
+                    while (x <= highestX && y <= highestY && p[x][y] == color) {
+                        length++;
+                        x++;
+                        y++;
                     }
-                    default: {
-                        break;
+
+                    if (checkPieceValidity(x, y)) {
+                        quality++;
                     }
+
+                    score += scoreCombo(length, quality);
                 }
-                break;
-            }
-            case 2: {
-                switch (quality1) {
-                    case 2: {
-                        score += 20;
-                        break;
-                    }
-                    case 1: {
-                        score += 10;
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-                break;
-            }
-            default: {
-                if (highLength1 > 5) {
-                    score += 1000;
-                }
-                break;
             }
         }
 
-        switch (highLength2) {
-            case 5: {
-                score += 1000;
-                break;
-            }
-            case 4: {
-                switch (quality2) {
-                    case 2: {
-                        score += 200;
-                        break;
-                    }
-                    case 1: {
-                        score += 50;
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
+
+        int y2 = lowestY;
+        int x2 = Integer.max(0, highestX - 2);
+        for ( ; x2 >= lowestX + 1; x2--) {
+            int x = x2;
+            int y = y2;
+
+            while (x <= highestX && y <= highestY) {
+                if (p[x][y] != color) {
+                    x++;
+                    y++;
                 }
-                break;
-            }
-            case 3: {
-                switch (quality2) {
-                    case 2: {
-                        score += 40;
-                        break;
+                else {
+                    int length = 0;
+                    int quality = 0;
+                    length++;
+                    if (checkPieceValidity(x - 1, y - 1)) {
+                        quality++;
                     }
-                    case 1: {
-                        score += 30;
-                        break;
+                    x++;
+                    y++;
+
+                    while (x <= highestX && y <= highestY && p[x][y] == color) {
+                        length++;
+                        x++;
+                        y++;
                     }
-                    default: {
-                        break;
+
+                    if (checkPieceValidity(x, y)) {
+                        quality++;
                     }
+
+                    score += scoreCombo(length, quality);
                 }
-                break;
-            }
-            case 2: {
-                switch (quality2) {
-                    case 2: {
-                        score += 20;
-                        break;
-                    }
-                    case 1: {
-                        score += 10;
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-                break;
-            }
-            default: {
-                if (highLength2 > 5) {
-                    score += 1000;
-                }
-                break;
             }
         }
 
-        if (pi.getColor() == color) { // this AI's move (significant)
-            return (score + 1) ;
-        }
-        else {
-            return score;
-        }
+        return score;
     }
 
-    private void evaluateAll(boolean alsoForAdversary) {
-        clearPScore();
+    private int checkBackDiagonally(int color) {
+        int score = 0;
 
-        addPotentialField();
+        int x1 = lowestX;
+        int y1 = Integer.min(highestY, lowestY + 2);
+        for ( ; y1 <= highestY; y1++) {
+            int x = x1;
+            int y = y1;
 
-        for (int x = szLowestX; x <= szHighestX; x++) {
-            for (int y = szLowestY; y <= szHighestY; y++) {
-                if (p[x][y] == 0) {
-                    int score1 = evaluateOneMove(PieceInfo.createAiPieceInfo(x, y, color));
-                    int score2 = 0;
-                    if (alsoForAdversary) {
-                        score2 = evaluateOneMove(PieceInfo.createAiPieceInfo(x, y, -color));
+            while (x <= highestX && y >= lowestY) {
+                if (p[x][y] != color) {
+                    x++;
+                    y--;
+                }
+                else {
+                    int length = 0;
+                    int quality = 0;
+                    length++;
+                    if (checkPieceValidity(x - 1, y + 1)) {
+                        quality++;
                     }
-                    if (score1 >= score2) {
-                        pScore[x][y] += score1;
+                    x++;
+                    y--;
+
+                    while (x <= highestX && y >= lowestY && p[x][y] == color) {
+                        length++;
+                        x++;
+                        y--;
                     }
-                    else {
-                        pScore[x][y] += score2;
+
+                    if (checkPieceValidity(x, y)) {
+                        quality++;
                     }
+
+                    score += scoreCombo(length, quality);
                 }
             }
         }
-    }
 
-    private PieceInfo makeDecision() {
-        int resultX = -1;
-        int resultY = -1;
-        int highestScore = -1;
-        for (int x = szLowestX; x <= szHighestX; x++) {
-            for (int y = szLowestY; y <= szHighestY; y++) {
-                if (p[x][y] == 0 && pScore[x][y] > highestScore) {
-                    highestScore = pScore[x][y];
-                    resultX = x;
-                    resultY = y;
+
+        int y2 = highestY;
+        int x2 = Integer.max(0, highestX - 2);
+        for ( ; x2 >= lowestX + 1; x2--) {
+            int x = x2;
+            int y = y2;
+
+            while (x <= highestX && y >= lowestY) {
+                if (p[x][y] != color) {
+                    x++;
+                    y--;
+                }
+                else {
+                    int length = 0;
+                    int quality = 0;
+                    length++;
+                    if (checkPieceValidity(x - 1, y + 1)) {
+                        quality++;
+                    }
+                    x++;
+                    y--;
+
+                    while (x <= highestX && y >= lowestY && p[x][y] == color) {
+                        length++;
+                        x++;
+                        y--;
+                    }
+
+                    if (checkPieceValidity(x, y)) {
+                        quality++;
+                    }
+
+                    score += scoreCombo(length, quality);
                 }
             }
         }
 
-        // this step is necessary
-        updateAnalogPieces(resultX, resultY);
-
-        return PieceInfo.createAiPieceInfo(resultX, resultY, color);
-    }
-
-    private boolean willThisMoveWin(PieceInfo pi) {
-        return (checkHorizontallyAndVertically(pi) || checkDiagonal(pi));
+        return score;
     }
 
     private boolean checkIfBlankExist() {
@@ -427,6 +570,42 @@ public class AI_Guardian implements AiMove {
         return false;
     }
 
+    private boolean checkPieceValidity(int x, int y) {
+        return (x >= 0 && x < Constants.getOrder() && y >= 0 && y < Constants.getOrder() && p[x][y] == 0);
+    }
+
+    class Combo {
+
+        final int length;
+        final int quality; // 0: no side open, 1: one side open, 2: both side open
+        Combo(int length, int quality) {
+            this.length = length;
+            this.quality = quality;
+        }
+
+    }
+
+    class ScoredPieceInfo {
+
+        final int x;
+        final int y;
+        final int color;
+        final int score;
+        ScoredPieceInfo(int x, int y, int color, int score) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.score = score;
+        }
+
+    }
+
+
+
+
+
+
+
     /**
      * @param direction
      * * 1 for '|'
@@ -436,15 +615,11 @@ public class AI_Guardian implements AiMove {
      *
      * @return Combo
      */
-    private Combo checkCombo(int direction, PieceInfo pi) {
+    private Combo checkCombo(int direction, int pX, int pY, int pC) {
         if (direction < 1 || direction > 4) {
             System.out.println("Wrong direction.");
             return null;
         }
-
-        int pX = pi.getX();
-        int pY = pi.getY();
-        int pC = pi.getColor();
 
         switch (direction) {
             case 1: {
@@ -458,10 +633,10 @@ public class AI_Guardian implements AiMove {
                 }
 
                 int quality = 0;
-                if (pieces.checkPieceValidity(pX, lowY - 1)) {
+                if (checkPieceValidity(pX, lowY - 1)) {
                     quality++;
                 }
-                if (pieces.checkPieceValidity(pX, highY + 1)) {
+                if (checkPieceValidity(pX, highY + 1)) {
                     quality++;
                 }
 
@@ -478,10 +653,10 @@ public class AI_Guardian implements AiMove {
                 }
 
                 int quality = 0;
-                if (pieces.checkPieceValidity(lowX - 1, pY)) {
+                if (checkPieceValidity(lowX - 1, pY)) {
                     quality++;
                 }
-                if (pieces.checkPieceValidity(highX + 1, pY)) {
+                if (checkPieceValidity(highX + 1, pY)) {
                     quality++;
                 }
 
@@ -501,10 +676,10 @@ public class AI_Guardian implements AiMove {
                 }
 
                 int quality = 0;
-                if (pieces.checkPieceValidity(lowX - 1, highY + 1)) {
+                if (checkPieceValidity(lowX - 1, highY + 1)) {
                     quality++;
                 }
-                if (pieces.checkPieceValidity(highX + 1, lowY - 1)) {
+                if (checkPieceValidity(highX + 1, lowY - 1)) {
                     quality++;
                 }
 
@@ -524,10 +699,10 @@ public class AI_Guardian implements AiMove {
                 }
 
                 int quality = 0;
-                if (pieces.checkPieceValidity(lowX - 1, lowY - 1)) {
+                if (checkPieceValidity(lowX - 1, lowY - 1)) {
                     quality++;
                 }
-                if (pieces.checkPieceValidity(highX + 1, highY + 1)) {
+                if (checkPieceValidity(highX + 1, highY + 1)) {
                     quality++;
                 }
 
@@ -537,6 +712,19 @@ public class AI_Guardian implements AiMove {
                 return null;
             }
         }
+    }
+
+    private void printAnalogPieces() {
+        for (int j = 0; j < Constants.getOrder(); j++) {
+            for (int i = 0; i < Constants.getOrder(); i++) {
+                System.out.print(p[i][j] + " ");
+            }
+            System.out.print("\n");
+        }
+    }
+
+    private boolean willThisMoveWin(PieceInfo pi) {
+        return (checkHorizontallyAndVertically(pi) || checkDiagonal(pi));
     }
 
     private boolean checkHorizontallyAndVertically(PieceInfo pi) {
@@ -612,22 +800,167 @@ public class AI_Guardian implements AiMove {
         // otherwise
     }
 
-    private void printAnalogPieces() {
-        for (int j = 0; j < Constants.getOrder(); j++) {
-            for (int i = 0; i < Constants.getOrder(); i++) {
-                System.out.print(p[i][j] + " ");
+    private int evaluateOneMove(int x, int y, int color) {
+        // TODO parameters of score algorithm are better to be stored in file, which makes it be able to learn like a truly AI.
+        int score = 0;
+
+        Combo combo1 = checkCombo(1, x, y, color);
+        Combo combo2 = checkCombo(2, x, y, color);
+        Combo combo3 = checkCombo(3, x, y, color);
+        Combo combo4 = checkCombo(4, x, y, color);
+
+        ArrayList<Combo> arr = new ArrayList<>();
+        arr.add(combo1);
+        arr.add(combo2);
+        arr.add(combo3);
+        arr.add(combo4);
+
+        arr.sort((o1, o2) -> {
+            if (o1.length > o2.length) {
+                return -1;
+            } else if (o1.length < o2.length) {
+                return 1;
+            } else {
+                return Integer.compare(o2.quality, o1.quality);
             }
-            System.out.print("\n");
+        });
+
+        int highLength1 = arr.get(0).length;
+        int quality1 = arr.get(0).quality;
+
+        int highLength2 = arr.get(1).length;
+        int quality2 = arr.get(1).quality;
+
+        // TODO needs to be re-organized
+        switch (highLength1) {
+            case 5: {
+                score += 10000;
+                break;
+            }
+            case 4: {
+                switch (quality1) {
+                    case 2: {
+                        score += 1000;
+                        break;
+                    }
+                    case 1: {
+                        score += 500;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 3: {
+                switch (quality1) {
+                    case 2: {
+                        score += 500;
+                        break;
+                    }
+                    case 1: {
+                        score += 100;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 2: {
+                switch (quality1) {
+                    case 2: {
+                        score += 20;
+                        break;
+                    }
+                    case 1: {
+                        score += 10;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            default: {
+                if (highLength1 > 5) {
+                    score += 10000;
+                }
+                break;
+            }
         }
-    }
 
-    class Combo {
-        final int length;
-        final int quality; // 0: no side open, 1: one side open, 2: both side open
+        switch (highLength2) {
+            case 5: {
+                score += 10000;
+                break;
+            }
+            case 4: {
+                switch (quality2) {
+                    case 2: {
+                        score += 1000;
+                        break;
+                    }
+                    case 1: {
+                        score += 500;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 3: {
+                switch (quality2) {
+                    case 2: {
+                        score += 500;
+                        break;
+                    }
+                    case 1: {
+                        score += 100;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 2: {
+                switch (quality2) {
+                    case 2: {
+                        score += 20;
+                        break;
+                    }
+                    case 1: {
+                        score += 10;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            default: {
+                if (highLength2 > 5) {
+                    score += 10000;
+                }
+                break;
+            }
+        }
 
-        Combo(int length, int quality) {
-            this.length = length;
-            this.quality = quality;
+        score += pScore[x][y];
+
+        if (color == this.color) { // this AI's move (significant)
+            return (score + 1) ;
+        }
+        else {
+            return score;
         }
     }
 }
