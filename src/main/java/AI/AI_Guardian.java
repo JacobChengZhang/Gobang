@@ -238,7 +238,7 @@ public class AI_Guardian implements AiMove {
     }
 
     private int evaluate() {
-        return evaluateOneSide(true) - evaluateOneSide(false);
+        return evaluateOneSide(true) / 2 - evaluateOneSide(false);
     }
 
     private int evaluateOneSide(boolean isItself) {

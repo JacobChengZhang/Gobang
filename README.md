@@ -13,8 +13,6 @@ Ban rules haven't been supported for this moment.
 
 Here's a screenshot:
 
- (Obviously, the AI_Guardian is not strong enough now.)
-
 <p>
     <div align="center">
   		<img src="examples/image/AI_Guardian get evolved.png"><br><br>
