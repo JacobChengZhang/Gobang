@@ -116,7 +116,4 @@ public class Referee {
     }
 }
 
-
-// TODO make both human and AI be able to pass a round
-
 // TODO add ban rules support

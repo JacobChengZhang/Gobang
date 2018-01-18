@@ -8,44 +8,29 @@ import java.util.ArrayList;
 
 public class AI_Guardian implements AiMove {
     private final int color;
-    private QueryPieces pieces = null;
+    private QueryPieces pieces;
     private final int[][] p; // analog pieces
-    private final int[][] pScore;
+    private final int order = Constants.getOrder();
 
     private final int depth = 3; // include 0
-    private final int breadth = 10;
-    private ScoredPieceInfo bestMove = null;
+    private _PieceInfo bestMove = null;
 
-    int lowestX = -1;
-    int highestX = -1;
-    int lowestY = -1;
-    int highestY = -1;
+    private int lowestX = 0;
+    private int highestX = order - 1;
+    private int lowestY = 0;
+    private int highestY = order - 1;
 
     // searchZone's diameter = [(highestX + border) - (lowestX - border)] * [(highestY + border) - (lowestY - border)]
     private final int searchZoneBorder = 3;
     private int szLowestX = 0;
-    private int szHighestX = Constants.getOrder() - 1;
+    private int szHighestX = order - 1;
     private int szLowestY = 0;
-    private int szHighestY = Constants.getOrder() - 1;
+    private int szHighestY = order - 1;
 
     public AI_Guardian(int color, QueryPieces pieces) {
         this.color = color;
         this.pieces = pieces;
-        this.p = new int[Constants.getOrder()][Constants.getOrder()];
-        this.pScore = new int[Constants.getOrder()][Constants.getOrder()];
-    }
-
-    private void score_module_test() {
-        makeOneMove(10, 2, color);
-        makeOneMove(9, 3, color);
-        makeOneMove(8, 4, color);
-
-        makeOneMove(7, 6, color);
-        makeOneMove(6, 7, color);
-        makeOneMove(5, 8, color);
-        makeOneMove(4, 9, color);
-        updateSearchZone();
-        System.out.println(checkBackDiagonally(color));
+        this.p = new int[order][order];
     }
 
     @Override
@@ -59,123 +44,30 @@ public class AI_Guardian implements AiMove {
 
         updateAnalogPieces();
         updateSearchZone();
-
-        clearPScore();
+        bestMove = null;
 
         //score_module_test();
+
         if(!checkIfPieceExist()) {
-            return PieceInfo.createAiPieceInfo((Constants.getOrder() - 1) / 2, (Constants.getOrder() - 1) / 2, color);
+            return PieceInfo.createAiPieceInfo((order - 1) / 2, (order - 1) / 2, color);
         }
 
-        alphaBeta(this.depth, Integer.MIN_VALUE, Integer.MAX_VALUE, true);
+        alphaBeta(this.depth, Integer.MIN_VALUE, Integer.MAX_VALUE, true, 0, 0, 0);
 
-        return PieceInfo.createAiPieceInfo(bestMove.x, bestMove.y, color);
-    }
-
-    private int alphaBeta(int depth, int alpha, int beta, boolean isMaximizingPlayer) {
-        if (depth == 0 || !checkIfBlankExist()) {
-            return evaluate();
-        }
-
-        if (isMaximizingPlayer) {
-            int v = Integer.MIN_VALUE;
-
-            ArrayList<ScoredPieceInfo> moveList = generateLegalMoves(this.color);
-            for (int i = 0; i < moveList.size(); i++) {
-                ScoredPieceInfo spi = moveList.get(i);
-                makeOneMove(spi.x, spi.y, spi.color);
-                updateSearchZone();
-
-                int result = alphaBeta(depth - 1, alpha, beta, false);
-                if (depth == this.depth && v < result) {
-                    bestMove = spi;
-                }
-                if (v < result) {
-                    v = result;
-                }
-
-                undoOneMove(spi.x, spi.y);
-                updateSearchZone();
-
-                alpha = Integer.max(alpha, v);
-                if (beta <= alpha) {
-                    break;
-                }
-            }
-
-            return v;
+        if (bestMove != null) {
+            return PieceInfo.createAiPieceInfo(bestMove.x, bestMove.y, color);
         }
         else {
-            int v = Integer.MAX_VALUE;
-
-            ArrayList<ScoredPieceInfo> moveList = generateLegalMoves(-this.color);
-            for (int i = 0; i < moveList.size(); i++) {
-                ScoredPieceInfo spi = moveList.get(i);
-                makeOneMove(spi.x, spi.y, spi.color);
-                updateSearchZone();
-
-                v = Integer.min(v, alphaBeta(depth - 1, alpha, beta, true));
-
-                undoOneMove(spi.x, spi.y);
-                updateSearchZone();
-
-                beta = Integer.min(beta, v);
-                if (beta <= alpha) {
-                    break;
-                }
-            }
-
-            return v;
+            return null;
         }
-    }
-
-    private int evaluate() {
-        return evaluateOneSide(true) / 2 - evaluateOneSide(false);
-    }
-
-    private int evaluateOneSide(boolean aiItself) {
-        int score = 0;
-        int color;
-        if (aiItself) {
-            color = this.color;
-        }
-        else {
-            color = -this.color;
-        }
-
-        score += (checkHorizontally(color) + checkVertically(color) + checkDiagonally(color) + checkBackDiagonally(color));
-        return score;
-    }
-
-    private ArrayList<ScoredPieceInfo> generateLegalMoves(int color) {
-        ArrayList<ScoredPieceInfo> moveList = new ArrayList<>();
-        for (int x = szLowestX; x <= szHighestX; x++) {
-            for (int y = szLowestY; y <= szHighestY; y++) {
-                if (p[x][y] == 0) {
-                    //moveList.add(new ScoredPieceInfo(x, y, color, evaluateOneMove(x, y, color)));
-                    moveList.add(new ScoredPieceInfo(x, y, color, 0));
-                }
-            }
-        }
-        return moveList;
-    }
-
-    private void makeOneMove(int x, int y, int color) {
-        p[x][y] = color;
-    }
-
-    private void undoOneMove(int x, int y) {
-        p[x][y] = 0;
     }
 
     private void updateAnalogPieces() {
         // make the analog pieces up-to-date
 
-        for (int i = 0; i < Constants.getOrder(); i++) {
-            for (int j = 0; j < Constants.getOrder(); j++) {
-                if (pieces.getPieceValue(i, j) != p[i][j]) {
-                    p[i][j] = pieces.getPieceValue(i, j);
-                }
+        for (int i = 0; i < order; i++) {
+            for (int j = 0; j < order; j++) {
+                p[i][j] = pieces.getPieceValue(i, j);
             }
         }
     }
@@ -184,8 +76,8 @@ public class AI_Guardian implements AiMove {
         if (checkIfPieceExist()) {
             boolean initialized = false;
 
-            for (int x = 0; x < Constants.getOrder(); x++) {
-                for (int y = 0; y < Constants.getOrder(); y++) {
+            for (int x = 0; x < order; x++) {
+                for (int y = 0; y < order; y++) {
                     if (p[x][y] != 0) {
                         if (initialized) {
                             if (x < lowestX) {
@@ -214,117 +106,201 @@ public class AI_Guardian implements AiMove {
             }
 
             // using "analog pieces' limit X&Y" to update "search zone's limit X&Y"
-            if (lowestX - searchZoneBorder < 0) {
-                szLowestX = 0;
-            }
-            else {
-                szLowestX = lowestX - searchZoneBorder;
-            }
+            szLowestX = Integer.max(0, lowestX - searchZoneBorder);
 
-            if (highestX + searchZoneBorder > Constants.getOrder() - 1) {
-                szHighestX = Constants.getOrder() - 1;
-            }
-            else {
-                szHighestX = highestX + searchZoneBorder;
-            }
+            szHighestX = Integer.min(order - 1, highestX + searchZoneBorder);
 
-            if (lowestY - searchZoneBorder < 0) {
-                szLowestY = 0;
-            }
-            else {
-                szLowestY = lowestY - searchZoneBorder;
-            }
+            szLowestY = Integer.max(0, lowestY - searchZoneBorder);
 
-            if (highestY + searchZoneBorder > Constants.getOrder() - 1) {
-                szHighestY = Constants.getOrder() - 1;
-            }
-            else {
-                szHighestY = highestY + searchZoneBorder;
-            }
+            szHighestY = Integer.min(order - 1, highestY + searchZoneBorder);
         }
         else {
+            lowestX = 0;
+            highestX = order - 1;
+            lowestY = 0;
+            highestY = order - 1;
             szLowestX = 0;
-            szHighestX = Constants.getOrder() - 1;
+            szHighestX = order - 1;
             szLowestY = 0;
-            szHighestY = Constants.getOrder() - 1;
+            szHighestY = order - 1;
         }
     }
 
-    private void clearPScore() {
-        for (int i = 0; i < Constants.getOrder(); i++) {
-            for (int j = 0; j < Constants.getOrder(); j++) {
-                pScore[i][j] = 0;
+    /**
+     *
+     * @param depth depth of search
+     * @param alpha alpha in "alpha-beta pruning"
+     * @param beta beta in "alpha-beta pruning"
+     * @param isMaximizingPlayer the same to isAI
+     * @param x x of the last move
+     * @param y y of the last move
+     * @param color color of the last move
+     * @return
+     */
+    private int alphaBeta(int depth, int alpha, int beta, boolean isMaximizingPlayer, int x, int y, int color) {
+        if (depth == 0 || willThisMoveWin(x, y ,color)) {
+            return evaluate();
+        }
+
+        if (isMaximizingPlayer) {
+            int v = Integer.MIN_VALUE;
+
+            ArrayList<_PieceInfo> moveList = generateLegalMoves(this.color);
+            for (_PieceInfo _pi : moveList) {
+                makeOneMove(_pi.x, _pi.y, _pi.color);
+
+                // backup search zone
+                int _lowestX = lowestX;
+                int _highestX = highestX;
+                int _lowestY = lowestY;
+                int _highestY = highestY;
+
+                int _szLowestX = szLowestX;
+                int _szHighestX = szHighestX;
+                int _szLowestY = szLowestY;
+                int _szHighestY = szHighestY;
+
+                adjustSearchZone(_pi.x, _pi.y);
+
+                int result = alphaBeta(depth - 1, alpha, beta, false, _pi.x, _pi.y, _pi.color);
+                if (v < result) {
+                    v = result;
+
+                    if (depth == this.depth) {
+                        bestMove = _pi;
+                    }
+                }
+
+                undoOneMove(_pi.x, _pi.y);
+
+                // recover search zone
+                lowestX = _lowestX;
+                highestX = _highestX;
+                lowestY = _lowestY;
+                highestY = _highestY;
+
+                szLowestX = _szLowestX;
+                szHighestX = _szHighestX;
+                szLowestY = _szLowestY;
+                szHighestY = _szHighestY;
+
+                alpha = Integer.max(alpha, v);
+                if (beta <= alpha) {
+                    break;
+                }
             }
+
+            return v;
+        }
+        else {
+            int v = Integer.MAX_VALUE;
+
+            ArrayList<_PieceInfo> moveList = generateLegalMoves(-this.color);
+            for (_PieceInfo _pi : moveList) {
+                makeOneMove(_pi.x, _pi.y, _pi.color);
+
+                // backup search zone
+                int _lowestX = lowestX;
+                int _highestX = highestX;
+                int _lowestY = lowestY;
+                int _highestY = highestY;
+
+                int _szLowestX = szLowestX;
+                int _szHighestX = szHighestX;
+                int _szLowestY = szLowestY;
+                int _szHighestY = szHighestY;
+
+                adjustSearchZone(_pi.x, _pi.y);
+
+                v = Integer.min(v, alphaBeta(depth - 1, alpha, beta, true, _pi.x, _pi.y, _pi.color));
+
+                undoOneMove(_pi.x, _pi.y);
+
+                // recover search zone
+                lowestX = _lowestX;
+                highestX = _highestX;
+                lowestY = _lowestY;
+                highestY = _highestY;
+
+                szLowestX = _szLowestX;
+                szHighestX = _szHighestX;
+                szLowestY = _szLowestY;
+                szHighestY = _szHighestY;
+
+                beta = Integer.min(beta, v);
+                if (beta <= alpha) {
+                    break;
+                }
+            }
+
+            return v;
         }
     }
 
-    private int scoreCombo(int length, int quality) {
+    private int evaluate() {
+        return evaluateOneSide(true) - evaluateOneSide(false);
+    }
+
+    private int evaluateOneSide(boolean isItself) {
         int score = 0;
-        switch (length) {
-            case 5: {
-                score += 100000;
-                break;
-            }
-            case 4: {
-                switch (quality) {
-                    case 2: {
-                        score += 10000;
-                        break;
-                    }
-                    case 1: {
-                        score += 4000;
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-                break;
-            }
-            case 3: {
-                switch (quality) {
-                    case 2: {
-                        score += 4000;
-                        break;
-                    }
-                    case 1: {
-                        score += 1000;
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-                break;
-            }
-            case 2: {
-                switch (quality) {
-                    case 2: {
-                        score += 100;
-                        break;
-                    }
-                    case 1: {
-                        score += 10;
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-                break;
-            }
-            default: {
-                if (length > 5) {
-                    score += 100000;
-                }
-                break;
-            }
+        int color;
+        if (isItself) {
+            color = this.color;
+        }
+        else {
+            color = -this.color;
         }
 
+        score += (scoreHorizontally(color) + scoreVertically(color) + scoreDiagonally(color) + scoreBackDiagonally(color));
         return score;
     }
 
-    private int checkHorizontally(int color) {
+    private ArrayList<_PieceInfo> generateLegalMoves(int color) {
+        ArrayList<_PieceInfo> moveList = new ArrayList<>();
+        for (int x = szLowestX; x <= szHighestX; x++) {
+            for (int y = szLowestY; y <= szHighestY; y++) {
+                if (p[x][y] == 0) {
+                    //moveList.add(new _PieceInfo(x, y, color, evaluateOneMove(x, y, color)));
+                    moveList.add(new _PieceInfo(x, y, color));
+                }
+            }
+        }
+        return moveList;
+    }
+
+    private void makeOneMove(int x, int y, int color) {
+        p[x][y] = color;
+    }
+
+    private void adjustSearchZone(int x, int y) {
+        if (x < lowestX) {
+            lowestX = x;
+        }
+        else if (x > highestX) {
+            highestX = x;
+        }
+
+        if (y < lowestY) {
+            lowestY = y;
+        }
+        else if (y > highestY) {
+            highestY = y;
+        }
+
+        szLowestX = Integer.max(0, lowestX - searchZoneBorder);
+
+        szHighestX = Integer.min(order - 1, highestX + searchZoneBorder);
+
+        szLowestY = Integer.max(0, lowestY - searchZoneBorder);
+
+        szHighestY = Integer.min(order - 1, highestY + searchZoneBorder);
+    }
+
+    private void undoOneMove(int x, int y) {
+        p[x][y] = 0;
+    }
+
+    private int scoreHorizontally(int color) {
         int score = 0;
         for (int y = lowestY; y <= highestY; y++) {
             for (int x = lowestX; x <= highestX; ) {
@@ -357,7 +333,7 @@ public class AI_Guardian implements AiMove {
         return score;
     }
 
-    private int checkVertically(int color) {
+    private int scoreVertically(int color) {
         int score = 0;
         for (int x = lowestX; x <= highestX; x++) {
             for (int y = lowestY; y <= highestY; ) {
@@ -390,7 +366,7 @@ public class AI_Guardian implements AiMove {
         return score;
     }
 
-    private int checkDiagonally(int color) {
+    private int scoreDiagonally(int color) {
         int score = 0;
 
         int x1 = lowestX;
@@ -469,7 +445,7 @@ public class AI_Guardian implements AiMove {
         return score;
     }
 
-    private int checkBackDiagonally(int color) {
+    private int scoreBackDiagonally(int color) {
         int score = 0;
 
         int x1 = lowestX;
@@ -548,20 +524,75 @@ public class AI_Guardian implements AiMove {
         return score;
     }
 
-    private boolean checkIfBlankExist() {
-        for (int x = 0; x < Constants.getOrder(); x++) {
-            for (int y = 0; y < Constants.getOrder(); y++) {
-                if (p[x][y] == 0) {
-                    return true;
+    private int scoreCombo(int length, int quality) {
+        int score = 0;
+        switch (length) {
+            case 5: {
+                score += 100000;
+                break;
+            }
+            case 4: {
+                switch (quality) {
+                    case 2: {
+                        score += 10000;
+                        break;
+                    }
+                    case 1: {
+                        score += 4000;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
                 }
+                break;
+            }
+            case 3: {
+                switch (quality) {
+                    case 2: {
+                        score += 4000;
+                        break;
+                    }
+                    case 1: {
+                        score += 1000;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            case 2: {
+                switch (quality) {
+                    case 2: {
+                        score += 100;
+                        break;
+                    }
+                    case 1: {
+                        score += 10;
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
+                }
+                break;
+            }
+            default: {
+                if (length > 5) {
+                    score += 100000;
+                }
+                break;
             }
         }
-        return false;
+
+        return score;
     }
 
     private boolean checkIfPieceExist() {
-        for (int x = 0; x < Constants.getOrder(); x++) {
-            for (int y = 0; y < Constants.getOrder(); y++) {
+        for (int x = lowestX; x <= highestX; x++) {
+            for (int y = lowestY; y <= highestY; y++) {
                 if (p[x][y] != 0) {
                     return true;
                 }
@@ -570,41 +601,129 @@ public class AI_Guardian implements AiMove {
         return false;
     }
 
-    private boolean checkPieceValidity(int x, int y) {
-        return (x >= 0 && x < Constants.getOrder() && y >= 0 && y < Constants.getOrder() && p[x][y] == 0);
+    private boolean checkIfBlankExist() {
+        for (int x = 0; x < order; x++) {
+            for (int y = 0; y < order; y++) {
+                if (p[x][y] == 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
-    class Combo {
+    private boolean willThisMoveWin(int pX, int pY, int pC) {
+        if (pC == 0) {
+            return false;
+        }
+        return (checkHorizontallyAndVertically(pX, pY, pC) || checkDiagonallyAndBackDiagonally(pX, pY, pC));
+    }
 
+    private boolean checkHorizontallyAndVertically(int pX, int pY, int pC) {
+        // check horizontally
+        int lowX = pX;
+        int highX = pX;
+
+        for ( ; (lowX >= 1) && (p[lowX - 1][pY] == pC); lowX--) {
+        }
+
+        for ( ; (highX < order - 1) && (p[highX + 1][pY] == pC); highX++) {
+        }
+        if (highX - lowX >= 4) {
+            return true;
+        }
+
+
+
+        // check Vertically
+        int lowY = pY;
+        int highY = pY;
+
+        for ( ; (lowY >= 1) && (p[pX][lowY - 1] == pC); lowY--) {
+        }
+
+        for ( ; (highY < order - 1) && (p[pX][highY + 1] == pC); highY++) {
+        }
+        return highY - lowY >= 4;
+
+        // otherwise
+    }
+
+    private boolean checkDiagonallyAndBackDiagonally(int pX, int pY, int pC) {
+        // check '\' diagonal
+        int lowX = pX;
+        int lowY = pY;
+
+        int highX = pX;
+        int highY = pY;
+
+        for ( ; (lowX >= 1) && (lowY >= 1) && (p[lowX - 1][lowY - 1] == pC); lowX--, lowY--) {
+        }
+
+        for (; (highX < order - 1) && (highY < order - 1) && (p[highX + 1][highY + 1] == pC); highX++, highY++) {
+        }
+        if (highX - lowX >= 4) {
+            return true;
+        }
+
+
+        // check '/' diagonal
+        lowX = pX;
+        highY = pY;
+
+        highX = pX;
+        lowY = pY;
+
+        for ( ; (lowX >= 1) && (highY < order - 1) && (p[lowX - 1][highY + 1] == pC); lowX--, highY++) {
+        }
+
+        for ( ; (highX < order - 1) && (lowY >= 1) && (p[highX + 1][lowY - 1] == pC); highX++, lowY--) {
+        }
+        return highX - lowX >= 4;
+
+        // otherwise
+    }
+
+    private boolean checkPieceValidity(int x, int y) {
+        return (x >= 0 && x < order && y >= 0 && y < order && p[x][y] == 0);
+    }
+
+    private void score_module_test() {
+        makeOneMove(10, 2, color);
+        makeOneMove(9, 3, color);
+        makeOneMove(8, 4, color);
+
+        makeOneMove(7, 6, color);
+        makeOneMove(6, 7, color);
+        makeOneMove(5, 8, color);
+        makeOneMove(4, 9, color);
+        updateSearchZone();
+        System.out.println(14000 == scoreBackDiagonally(color));
+    }
+
+    class _PieceInfo {
+        final int x;
+        final int y;
+        final int color;
+        _PieceInfo(int x, int y, int color) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+        }
+    }
+
+
+
+    @Deprecated
+    class Combo {
         final int length;
         final int quality; // 0: no side open, 1: one side open, 2: both side open
+
         Combo(int length, int quality) {
             this.length = length;
             this.quality = quality;
         }
-
     }
-
-    class ScoredPieceInfo {
-
-        final int x;
-        final int y;
-        final int color;
-        final int score;
-        ScoredPieceInfo(int x, int y, int color, int score) {
-            this.x = x;
-            this.y = y;
-            this.color = color;
-            this.score = score;
-        }
-
-    }
-
-
-
-
-
-
 
     /**
      * @param direction
@@ -615,6 +734,7 @@ public class AI_Guardian implements AiMove {
      *
      * @return Combo
      */
+    @Deprecated
     private Combo checkCombo(int direction, int pX, int pY, int pC) {
         if (direction < 1 || direction > 4) {
             System.out.println("Wrong direction.");
@@ -629,7 +749,7 @@ public class AI_Guardian implements AiMove {
                 for ( ; (lowY >= 1) && (p[pX][lowY - 1] == pC); lowY--) {
                 }
 
-                for ( ; (highY < Constants.getOrder() - 1) && (p[pX][highY + 1] == pC); highY++) {
+                for ( ; (highY < order - 1) && (p[pX][highY + 1] == pC); highY++) {
                 }
 
                 int quality = 0;
@@ -649,7 +769,7 @@ public class AI_Guardian implements AiMove {
                 for ( ; (lowX >= 1) && (p[lowX - 1][pY] == pC); lowX--) {
                 }
 
-                for ( ; (highX < Constants.getOrder() - 1) && (p[highX + 1][pY] == pC); highX++) {
+                for ( ; (highX < order - 1) && (p[highX + 1][pY] == pC); highX++) {
                 }
 
                 int quality = 0;
@@ -669,10 +789,10 @@ public class AI_Guardian implements AiMove {
                 int highX = pX;
                 int lowY = pY;
 
-                for ( ; (lowX >= 1) && (highY < Constants.getOrder() - 1) && (p[lowX - 1][highY + 1] == pC); lowX--, highY++) {
+                for ( ; (lowX >= 1) && (highY < order - 1) && (p[lowX - 1][highY + 1] == pC); lowX--, highY++) {
                 }
 
-                for ( ; (highX < Constants.getOrder() - 1) && (lowY >= 1) && (p[highX + 1][lowY - 1] == pC); highX++, lowY--) {
+                for ( ; (highX < order - 1) && (lowY >= 1) && (p[highX + 1][lowY - 1] == pC); highX++, lowY--) {
                 }
 
                 int quality = 0;
@@ -695,7 +815,7 @@ public class AI_Guardian implements AiMove {
                 for ( ; (lowX >= 1) && (lowY >= 1) && (p[lowX - 1][lowY - 1] == pC); lowX--, lowY--) {
                 }
 
-                for ( ; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (p[highX + 1][highY + 1] == pC); highX++, highY++) {
+                for ( ; (highX < order - 1) && (highY < order - 1) && (p[highX + 1][highY + 1] == pC); highX++, highY++) {
                 }
 
                 int quality = 0;
@@ -714,92 +834,17 @@ public class AI_Guardian implements AiMove {
         }
     }
 
+    @Deprecated
     private void printAnalogPieces() {
-        for (int j = 0; j < Constants.getOrder(); j++) {
-            for (int i = 0; i < Constants.getOrder(); i++) {
+        for (int j = 0; j < order; j++) {
+            for (int i = 0; i < order; i++) {
                 System.out.print(p[i][j] + " ");
             }
             System.out.print("\n");
         }
     }
 
-    private boolean willThisMoveWin(PieceInfo pi) {
-        return (checkHorizontallyAndVertically(pi) || checkDiagonal(pi));
-    }
-
-    private boolean checkHorizontallyAndVertically(PieceInfo pi) {
-        int pX = pi.getX();
-        int pY = pi.getY();
-        int pC = pi.getColor();
-
-        // check horizontally
-        int lowX = pX;
-        int highX = pX;
-
-        for ( ; (lowX >= 1) && (p[lowX - 1][pY] == pC); lowX--) {
-        }
-
-        for ( ; (highX < Constants.getOrder() - 1) && (p[highX + 1][pY] == pC); highX++) {
-        }
-        if (highX - lowX >= 4) {
-            return true;
-        }
-
-
-
-        // check Vertically
-        int lowY = pY;
-        int highY = pY;
-
-        for ( ; (lowY >= 1) && (p[pX][lowY - 1] == pC); lowY--) {
-        }
-
-        for ( ; (highY < Constants.getOrder() - 1) && (p[pX][highY + 1] == pC); highY++) {
-        }
-        return highY - lowY >= 4;
-
-        // otherwise
-    }
-
-    private boolean checkDiagonal(PieceInfo pi) {
-        int pX = pi.getX();
-        int pY = pi.getY();
-        int pC = pi.getColor();
-
-        // check '\' diagonal
-        int lowX = pX;
-        int lowY = pY;
-
-        int highX = pX;
-        int highY = pY;
-
-        for ( ; (lowX >= 1) && (lowY >= 1) && (p[lowX - 1][lowY - 1] == pC); lowX--, lowY--) {
-        }
-
-        for (; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (p[highX + 1][highY + 1] == pC); highX++, highY++) {
-        }
-        if (highX - lowX >= 4) {
-            return true;
-        }
-
-
-        // check '/' diagonal
-        lowX = pX;
-        highY = pY;
-
-        highX = pX;
-        lowY = pY;
-
-        for ( ; (lowX >= 1) && (highY < Constants.getOrder() - 1) && (p[lowX - 1][highY + 1] == pC); lowX--, highY++) {
-        }
-
-        for ( ; (highX < Constants.getOrder() - 1) && (lowY >= 1) && (p[highX + 1][lowY - 1] == pC); highX++, lowY--) {
-        }
-        return highX - lowX >= 4;
-
-        // otherwise
-    }
-
+    @Deprecated
     private int evaluateOneMove(int x, int y, int color) {
         // TODO parameters of score algorithm are better to be stored in file, which makes it be able to learn like a truly AI.
         int score = 0;
@@ -953,8 +998,6 @@ public class AI_Guardian implements AiMove {
                 break;
             }
         }
-
-        score += pScore[x][y];
 
         if (color == this.color) { // this AI's move (significant)
             return (score + 1) ;

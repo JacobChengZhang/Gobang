@@ -17,6 +17,6 @@ Here's a screenshot:
 
 <p>
     <div align="center">
-  		<img src="examples/image/gomoku_example.png"><br><br>
+  		<img src="examples/image/AI_Guardian get evolved.png"><br><br>
 	</div>
 </p>
