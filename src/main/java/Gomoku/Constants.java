@@ -17,10 +17,12 @@ public class Constants {
     }
 
     public static final int aiThreadCycle = 300;
-    public static final int loadThreadCycle = 5000;
+    public static final int loadThreadCycle = 1500;
 
     // max number of failed attempts that AI can make
     public static final int maxAttempts = 10;
+
+    public static final boolean isManualLoad = true;
 
     // TODO add different ban rules
     private static boolean bans;

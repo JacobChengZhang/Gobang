@@ -26,6 +26,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import sun.tools.java.Environment;
 
 import java.io.*;
 import java.text.SimpleDateFormat;
@@ -65,6 +66,9 @@ public class Gomoku extends Application{
     private Thread thread = null;
     private boolean endThread = false;
 
+    // used for manually load replay
+    private boolean clicked = false;
+
 
     // -1:black    1: white
     private int color = -1;
@@ -101,6 +105,8 @@ public class Gomoku extends Application{
         paneButton.setPrefSize(paneButtonWidth, paneBoardHeight);
 
         paneBoard.setOnMouseClicked(me -> {
+            clicked = true;
+
             if (!Constants.gameStarted) {
                 return;
             }
@@ -443,14 +449,13 @@ public class Gomoku extends Application{
                             ai = ai2;
                         }
 
-
                         runAndWait(() ->
                                 lblTxt.setText(ai.toString() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving"));
 
                         PieceInfo aiMove = null;
                         boolean isMoveValid = false;
                         int attempt = 0;
-                        while (!isMoveValid) {
+                        while (!isMoveValid && !endThread) {
                             // too many failed attempts make failure indeed
                             if (attempt < Constants.maxAttempts) {
                                 attempt++;
@@ -475,8 +480,10 @@ public class Gomoku extends Application{
                                 Pieces.getInstance().piecePushStack(aiMove);
 
                                 final PieceInfo _aiMove = new PieceInfo(aiMove.getX(), aiMove.getY(), aiMove.getColor(), true);
-                                runAndWait(() ->
-                                        drawPiece(_aiMove, true));
+                                if (!endThread) {
+                                    runAndWait(() ->
+                                            drawPiece(_aiMove, true));
+                                }
                             }
                         }
 
@@ -583,6 +590,9 @@ public class Gomoku extends Application{
         Pieces.getInstance().getReplayData(sb);
 
         try {
+            File folder = new File("./replay/");
+            folder.mkdirs();
+
             OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream("./replay/" + date.replaceAll(":", "_") + ".txt"), "utf-8");
             writer.write(sb.toString());
             writer.close();
@@ -682,7 +692,16 @@ public class Gomoku extends Application{
                         }
 
                         line++;
-                        Thread.sleep(Constants.loadThreadCycle);
+
+                        if (Constants.isManualLoad) {
+                            while (!clicked) {
+                                Thread.sleep(100);
+                            }
+                            clicked = false;
+                        }
+                        else {
+                            Thread.sleep(Constants.loadThreadCycle);
+                        }
                     }
                     reader.close();
                 }
