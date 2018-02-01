@@ -164,6 +164,7 @@ public class AI_Guardian implements AiMove {
 
                 int result = alphaBeta(depth - 1, alpha, beta, false, _pi.x, _pi.y, _pi.color);
                 if (v < result) {
+
                     v = result;
 
                     if (depth == this.depth) {

@@ -26,7 +26,6 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import sun.tools.java.Environment;
 
 import java.io.*;
 import java.text.SimpleDateFormat;
@@ -114,7 +113,8 @@ public class Gomoku extends Application{
                 return;
             }
             else if (Constants.getMode() == Constants.Mode.PvAI) {
-                letHumanMove(true, me);
+                if (thread == null || thread.getState() == Thread.State.TERMINATED)
+                    letHumanMove(true, me);
             }
             else { // Constants.Mode.PvP
                 letHumanMove(false, me);
@@ -921,7 +921,7 @@ public class Gomoku extends Application{
             PieceInfo tempPi = new PieceInfo(seqX, seqY, color, false);
             if (Pieces.getInstance().setPieceValue(tempPi)) {
                 Pieces.getInstance().piecePushStack(tempPi);
-                drawPiece(tempPi, true);
+                        drawPiece(tempPi, true);
 
                 int checkResult = Referee.checkWinningCondition(tempPi);
                 if (checkResult != 0) {
@@ -929,7 +929,62 @@ public class Gomoku extends Application{
                 }
                 else {
                     if (nextIsAi) {
-                        letAiMove(ai1);
+                        // TODO needs to be re-constructed
+                        thread = new Thread(() -> {
+                            if (Constants.gameStarted && !endThread) {
+                                AiMove ai = ai1;
+
+                                runAndWait(() ->
+                                        lblTxt.setText(ai.toString() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving"));
+
+                                PieceInfo aiMove = null;
+                                boolean isMoveValid = false;
+                                int attempt = 0;
+                                while (!isMoveValid && !endThread) {
+                                    // too many failed attempts make failure indeed
+                                    if (attempt < Constants.maxAttempts) {
+                                        attempt++;
+                                    }
+                                    else {
+                                        runAndWait(() ->
+                                                finishGame(-ai.getColor() * 2));
+                                        return;
+                                    }
+
+                                    try {
+                                        aiMove = ai.nextMove();
+                                    }
+                                    catch(Exception ex) {
+                                        ex.printStackTrace();
+                                        continue;
+                                    }
+
+                                    if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+                                        isMoveValid = true;
+                                        Pieces.getInstance().setPieceValue(aiMove);
+                                        Pieces.getInstance().piecePushStack(aiMove);
+
+                                        final PieceInfo _aiMove = new PieceInfo(aiMove.getX(), aiMove.getY(), aiMove.getColor(), true);
+                                        if (!endThread) {
+                                            runAndWait(() ->
+                                                    drawPiece(_aiMove, true));
+                                        }
+                                    }
+                                }
+
+                                runAndWait(() ->
+                                        lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move"));
+
+                                int checkResult2 = Referee.checkWinningCondition(aiMove);
+                                if (checkResult2 != 0) {
+                                    runAndWait(() ->
+                                            finishGame(checkResult2));
+                                }
+
+                            }
+                        });
+                        endThread = false;
+                        thread.start();
                     }
                     else{
                         switchColor();
