@@ -165,14 +165,6 @@ public class Gomoku extends Application{
         drawDot(new PieceInfo(Constants.getOrder() - 4, Constants.getOrder() - 4, 0));
         drawDot(new PieceInfo((Constants.getOrder() - 1) / 2, (Constants.getOrder() - 1) / 2, 0));
 
-//        for (int x = 0; x < Constants.getOrder(); x++) {
-//            for (int y = 0; y < Constants.getOrder(); y++) {
-//                int tempColor = Pieces.getInstance().getPieceValue(x, y);
-//                if (tempColor != 0) {
-//                    drawPiece(new PieceInfo(x, y, tempColor), false);
-//                }
-//            }
-//        }
         // TODO draw number 1 ~ 15 and characters A ~ O (not necessary)
     }
 
@@ -470,58 +462,12 @@ public class Gomoku extends Application{
                             ai = ai2;
                         }
 
-                        runAndWait(() ->
-                                lblTxt.setText(ai.toString() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving"));
-
-                        PieceInfo aiMove = null;
-                        boolean isMoveValid = false;
-                        int attempt = 0;
-                        while (!isMoveValid && !endThread) {
-                            // too many failed attempts make failure indeed
-                            if (attempt < Constants.maxAttempts) {
-                                attempt++;
-                            }
-                            else {
-                                runAndWait(() ->
-                                        finishGame(-ai.getColor() * 2));
-                                return;
-                            }
-
-                            try {
-                                aiMove = ai.nextMove();
-                            }
-                            catch(Exception ex) {
-                                ex.printStackTrace();
-                                continue;
-                            }
-
-                            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
-                                isMoveValid = true;
-                                Pieces.getInstance().setPieceValue(aiMove);
-                                Pieces.getInstance().piecePushStack(aiMove);
-
-                                final PieceInfo _aiMove = new PieceInfo(aiMove.getX(), aiMove.getY(), aiMove.getColor(), true);
-                                if (!endThread) {
-                                    runAndWait(() ->
-                                            drawPiece(_aiMove, true));
-                                }
-                            }
-                        }
-
-                        runAndWait(() ->
-                                lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move"));
-
-                        int checkResult = Referee.checkWinningCondition(aiMove);
-                        if (checkResult != 0) {
-                            runAndWait(() ->
-                                    finishGame(checkResult));
-                        }
+                        letAiMoveInOtherThread(ai);
 
                         if (Constants.gameStarted && !endThread) {
                             runAndWait(() ->
                                     switchColor());
                         }
-
 //                        try {
 //                            Thread.sleep(Constants.aiThreadCycle);
 //                        }
@@ -714,6 +660,8 @@ public class Gomoku extends Application{
                         line++;
 
                         if (Constants.isManualLoad) {
+                            Platform.runLater(() ->
+                                    lblTxt.setText("Click to replay step by step."));
                             while (!clicked) {
                                 Thread.sleep(100);
                             }
@@ -934,6 +882,55 @@ public class Gomoku extends Application{
         }
     }
 
+    private void letAiMoveInOtherThread(AiMove ai) {
+        runAndWait(() ->
+                lblTxt.setText(ai.toString() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving"));
+
+        PieceInfo aiMove = null;
+        boolean isMoveValid = false;
+        int attempt = 0;
+        while (!isMoveValid && !endThread) {
+            // too many failed attempts make failure indeed
+            if (attempt < Constants.maxAttempts) {
+                attempt++;
+            }
+            else {
+                runAndWait(() ->
+                        finishGame(-ai.getColor() * 2));
+                return;
+            }
+
+            try {
+                aiMove = ai.nextMove();
+            }
+            catch(Exception ex) {
+                ex.printStackTrace();
+                continue;
+            }
+
+            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+                isMoveValid = true;
+                Pieces.getInstance().setPieceValue(aiMove);
+                Pieces.getInstance().piecePushStack(aiMove);
+
+                final PieceInfo _aiMove = new PieceInfo(aiMove.getX(), aiMove.getY(), aiMove.getColor(), true);
+                if (!endThread) {
+                    runAndWait(() ->
+                            drawPiece(_aiMove, true));
+                }
+            }
+        }
+
+        runAndWait(() ->
+                lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move"));
+
+        int checkResult = Referee.checkWinningCondition(aiMove);
+        if (checkResult != 0) {
+            runAndWait(() ->
+                    finishGame(checkResult));
+        }
+    }
+
     private void letHumanMove(boolean nextIsAi, MouseEvent me) {
         if (checkMouseClick(me.getX(), me.getY())) {
             int seqX = calcPieceSeq(me.getX());
@@ -949,58 +946,11 @@ public class Gomoku extends Application{
                 }
                 else {
                     if (nextIsAi) {
-                        // TODO needs to be re-constructed
                         thread = new Thread(() -> {
                             if (Constants.gameStarted && !endThread) {
                                 AiMove ai = ai1;
 
-                                runAndWait(() ->
-                                        lblTxt.setText(ai.toString() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving"));
-
-                                PieceInfo aiMove = null;
-                                boolean isMoveValid = false;
-                                int attempt = 0;
-                                while (!isMoveValid && !endThread) {
-                                    // too many failed attempts make failure indeed
-                                    if (attempt < Constants.maxAttempts) {
-                                        attempt++;
-                                    }
-                                    else {
-                                        runAndWait(() ->
-                                                finishGame(-ai.getColor() * 2));
-                                        return;
-                                    }
-
-                                    try {
-                                        aiMove = ai.nextMove();
-                                    }
-                                    catch(Exception ex) {
-                                        ex.printStackTrace();
-                                        continue;
-                                    }
-
-                                    if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
-                                        isMoveValid = true;
-                                        Pieces.getInstance().setPieceValue(aiMove);
-                                        Pieces.getInstance().piecePushStack(aiMove);
-
-                                        final PieceInfo _aiMove = new PieceInfo(aiMove.getX(), aiMove.getY(), aiMove.getColor(), true);
-                                        if (!endThread) {
-                                            runAndWait(() ->
-                                                    drawPiece(_aiMove, true));
-                                        }
-                                    }
-                                }
-
-                                runAndWait(() ->
-                                        lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move"));
-
-                                int checkResult2 = Referee.checkWinningCondition(aiMove);
-                                if (checkResult2 != 0) {
-                                    runAndWait(() ->
-                                            finishGame(checkResult2));
-                                }
-
+                                letAiMoveInOtherThread(ai);
                             }
                         });
                         endThread = false;

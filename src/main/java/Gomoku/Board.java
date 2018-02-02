@@ -20,7 +20,6 @@ class Board {
     Circle redDot = null;
     Object winAnimation = null;
 
-
     static ObservableList<Node> paneBoardChildren = null;
 
     private static int order;
