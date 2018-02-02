@@ -17,7 +17,7 @@ public class Constants {
     }
 
     public static final int aiThreadCycle = 300;
-    public static final int loadThreadCycle = 1500;
+    public static final int loadThreadCycle = 500;
 
     // max number of failed attempts that AI can make
     public static final int maxAttempts = 10;

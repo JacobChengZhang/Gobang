@@ -4,9 +4,11 @@ import AI.AI_Guardian;
 import AI.AI_Herald;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -39,6 +41,9 @@ public class Gomoku extends Application{
 
     private Pane paneBoard = null;
     private Pane paneButton = null;
+    private ObservableList<Node> paneBoardChildren = null;
+
+    private Board board = null;
 
     private Button btnStart = null;
     private Button btnMode = null;
@@ -121,15 +126,24 @@ public class Gomoku extends Application{
             }
         });
 
+        paneBoardChildren = paneBoard.getChildren();
+        board = Board.getInstance();
+        board.paneBoardChildren = paneBoardChildren;
+        
         root.getChildren().add(paneBoard);
         root.getChildren().add(paneButton);
     }
 
+    private void clearBoard() {
+        board.clearPieces();
+    }
+
     private void clearAndRedrawBoard() {
         // clear board first
-        Rectangle rectClear = new Rectangle(paneWidth, paneBoardHeight);
-        rectClear.setFill(Color.WHITE);
-        paneBoard.getChildren().add(rectClear);
+        board = Board.getInstance();
+        board.clear();
+
+        // TODO (seperate clear from drawBoard) dont redraw everything, just remove pieces' nodes
 
         // draw lines
         for (int i = 0; i < Constants.getOrder(); i++) {
@@ -137,8 +151,11 @@ public class Gomoku extends Application{
             Line lineY = new Line(calcPieceCoordinate(i), Constants.getBorder(), calcPieceCoordinate(i), paneBoardHeight - Constants.getBorder());
             lineX.setStrokeWidth(Constants.lineWidth);
             lineY.setStrokeWidth(Constants.lineWidth);
-            paneBoard.getChildren().add(lineX);
-            paneBoard.getChildren().add(lineY);
+            paneBoardChildren.add(lineX);
+            paneBoardChildren.add(lineY);
+
+            board.lineListX.add(lineX);
+            board.lineListY.add(lineY);
         }
 
         // draw five dots
@@ -148,14 +165,14 @@ public class Gomoku extends Application{
         drawDot(new PieceInfo(Constants.getOrder() - 4, Constants.getOrder() - 4, 0));
         drawDot(new PieceInfo((Constants.getOrder() - 1) / 2, (Constants.getOrder() - 1) / 2, 0));
 
-        for (int x = 0; x < Constants.getOrder(); x++) {
-            for (int y = 0; y < Constants.getOrder(); y++) {
-                int tempColor = Pieces.getInstance().getPieceValue(x, y);
-                if (tempColor != 0) {
-                    drawPiece(new PieceInfo(x, y, tempColor), false);
-                }
-            }
-        }
+//        for (int x = 0; x < Constants.getOrder(); x++) {
+//            for (int y = 0; y < Constants.getOrder(); y++) {
+//                int tempColor = Pieces.getInstance().getPieceValue(x, y);
+//                if (tempColor != 0) {
+//                    drawPiece(new PieceInfo(x, y, tempColor), false);
+//                }
+//            }
+//        }
         // TODO draw number 1 ~ 15 and characters A ~ O (not necessary)
     }
 
@@ -241,14 +258,11 @@ public class Gomoku extends Application{
         dot.setFill(Color.BLACK);
         dot.setStroke(Color.BLACK);
 
-        paneBoard.getChildren().add(dot);
+        paneBoardChildren.add(dot);
+        board.dotList.add(dot);
     }
 
     private void drawPiece(PieceInfo pi, boolean isNew) {
-        if (isNew) {
-            clearAndRedrawBoard();
-        }
-
         final Circle p = new Circle();
         p.setCenterX(calcPieceCoordinate(pi.getX()));
         p.setCenterY(calcPieceCoordinate(pi.getY()));
@@ -262,12 +276,14 @@ public class Gomoku extends Application{
         p.setStrokeWidth(Constants.lineWidth);
         p.setStroke(Color.BLACK);
 
-        paneBoard.getChildren().add(p);
+        paneBoardChildren.add(p);
+        board.pieceList.add(p);
 
         if (isNew) {
-            final Circle redDot = new Circle();
-            redDot.setCenterX(calcPieceCoordinate(pi.getX()));
-            redDot.setCenterY(calcPieceCoordinate(pi.getY()));
+            if (board.redDot == null) {
+                board.redDot = new Circle();
+                board.redDot.setCenterX(calcPieceCoordinate(pi.getX()));
+                board.redDot.setCenterY(calcPieceCoordinate(pi.getY()));
 
 //            // red ring style
 //            redDot.setRadius(Constants.pieceRadius);
@@ -275,13 +291,16 @@ public class Gomoku extends Application{
 //            redDot.setStrokeWidth(Constants.lineWidth * 3);
 //            redDot.setStroke(Color.RED);
 
-            // red dot style
-            redDot.setRadius(Constants.pieceRadius / 4);
-            redDot.setFill(Color.RED);
-            redDot.setStrokeWidth(Constants.lineWidth);
-            redDot.setStroke(Color.RED);
-
-            paneBoard.getChildren().add(redDot);
+                // red dot style
+                board.redDot.setRadius(Constants.pieceRadius / 4);
+                board.redDot.setFill(Color.RED);
+                board.redDot.setStrokeWidth(Constants.lineWidth);
+                board.redDot.setStroke(Color.RED);
+                paneBoardChildren.add(board.redDot);
+            } else {
+                board.redDot.relocate(calcPieceCoordinate(pi.getX()) - board.redDot.getRadius(), calcPieceCoordinate(pi.getY()) - board.redDot.getRadius());
+                board.redDot.toFront();
+            }
         }
     }
 
@@ -354,7 +373,8 @@ public class Gomoku extends Application{
             txt.setFill(Color.RED);
             txt.setFont(new Font("Courier", 6 * Constants.pieceRadius));
             txt.setTextAlignment(TextAlignment.CENTER);
-            paneBoard.getChildren().add(txt);
+            paneBoardChildren.add(txt);
+            board.winAnimation = txt;
         }
         else {
             PieceInfo pi1 = Pieces.getInstance().getWinningPieceInfo(1);
@@ -363,7 +383,8 @@ public class Gomoku extends Application{
                 Line winningLine = new Line(calcPieceCoordinate(pi1.getX()), calcPieceCoordinate(pi1.getY()), calcPieceCoordinate(pi2.getX()), calcPieceCoordinate(pi2.getY()));
                 winningLine.setStroke(Color.RED);
                 winningLine.setStrokeWidth(Constants.pieceRadius / 3);
-                paneBoard.getChildren().add(winningLine);
+                paneBoardChildren.add(winningLine);
+                board.winAnimation = winningLine;
             }
             else {
                 //System.out.println("Caught a bug and failed to fetch winning PieceInfo");
@@ -525,7 +546,7 @@ public class Gomoku extends Application{
 
         if (clearPieces) {
             Pieces.getInstance().clearPieces();
-            clearAndRedrawBoard();
+            clearBoard();
             lblTxt.setText("");
             btnSave.setDisable(true);
             btnRetract.setDisable(true);
@@ -618,7 +639,6 @@ public class Gomoku extends Application{
         if (selectedFile != null) {
             //Constants.gameStarted = true;
             Pieces.getInstance().clearPieces();
-            clearAndRedrawBoard();
             btnStart.setDisable(true);
             btnMode.setDisable(true);
             sldSize.setDisable(true);
@@ -781,14 +801,14 @@ public class Gomoku extends Application{
                 }
             }
 
-            drawPiece(redrawPi, true);
+            board.redDot.relocate(calcPieceCoordinate(redrawPi.getX()) - board.redDot.getRadius(), calcPieceCoordinate(redrawPi.getY()) - board.redDot.getRadius());
+            board.redDot.toFront();
+
             Constants.gameStarted = true;
             sldSize.setDisable(true);
             btnMode.setDisable(true);
             btnLoad.setDisable(true);
             btnStart.setText("End");
-
-
         }
         else {
             switch (Constants.getMode()) {
@@ -807,7 +827,7 @@ public class Gomoku extends Application{
                 }
             }
 
-            clearAndRedrawBoard();
+            clearBoard();
             Constants.gameStarted = true;
             sldSize.setDisable(true);
             btnMode.setDisable(true);

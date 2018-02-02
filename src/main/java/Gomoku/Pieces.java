@@ -51,6 +51,9 @@ public class Pieces implements QueryPieces{
             p[x][y] = 0;
             //also make winningPi disappear
             setWinningPieceInfo(null, null);
+
+            // call board to make changes relatively
+            Board.getInstance().removeLastPiece();
         }
     }
 
