@@ -9,11 +9,11 @@ public class Referee {
      * -1   -> Black wins
      * -100 -> Draw.
      */
-    static int checkWinningCondition(PieceInfo pi) {
-        if (checkHorizontallyAndVertically(pi) || checkDiagonal(pi)) {
+    static int checkWinningCondition(Pieces pieces, PieceInfo pi) {
+        if (checkHorizontallyAndVertically(pieces, pi) || checkDiagonal(pieces, pi)) {
             return pi.getColor();
         }
-        else if (!checkIfBlankExist()) {
+        else if (!checkIfBlankExist(pieces)) {
             return -100;
         }
         else {
@@ -21,10 +21,10 @@ public class Referee {
         }
     }
 
-    private static boolean checkIfBlankExist() {
+    private static boolean checkIfBlankExist(Pieces pieces) {
         for (int x = 0; x < Constants.getOrder(); x++) {
             for (int y = 0; y < Constants.getOrder(); y++) {
-                if (Pieces.getInstance().getPieceValue(x, y) == 0) {
+                if (pieces.getPieceValue(x, y) == 0) {
                     return true;
                 }
             }
@@ -32,7 +32,7 @@ public class Referee {
         return false;
     }
 
-    private static boolean checkHorizontallyAndVertically(PieceInfo pi) {
+    private static boolean checkHorizontallyAndVertically(Pieces pieces, PieceInfo pi) {
         int pX = pi.getX();
         int pY = pi.getY();
         int pC = pi.getColor();
@@ -41,13 +41,13 @@ public class Referee {
         int lowX = pX;
         int highX = pX;
 
-        for ( ; (lowX >= 1) && (Pieces.getInstance().getPieceValue(lowX - 1, pY) == pC); lowX--) {
+        for ( ; (lowX >= 1) && (pieces.getPieceValue(lowX - 1, pY) == pC); lowX--) {
         }
 
-        for ( ; (highX < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(highX + 1, pY) == pC); highX++) {
+        for ( ; (highX < Constants.getOrder() - 1) && (pieces.getPieceValue(highX + 1, pY) == pC); highX++) {
         }
         if (highX - lowX >= 4) {
-            Pieces.getInstance().setWinningPieceInfo(new PieceInfo(lowX, pY, pC), new PieceInfo(highX, pY, pC));
+            pieces.setWinningPieceInfo(new PieceInfo(lowX, pY, pC), new PieceInfo(highX, pY, pC));
             return true;
         }
 
@@ -57,13 +57,13 @@ public class Referee {
         int lowY = pY;
         int highY = pY;
 
-        for ( ; (lowY >= 1) && (Pieces.getInstance().getPieceValue(pX, lowY - 1) == pC); lowY--) {
+        for ( ; (lowY >= 1) && (pieces.getPieceValue(pX, lowY - 1) == pC); lowY--) {
         }
 
-        for ( ; (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(pX, highY + 1) == pC); highY++) {
+        for ( ; (highY < Constants.getOrder() - 1) && (pieces.getPieceValue(pX, highY + 1) == pC); highY++) {
         }
         if (highY - lowY >= 4) {
-            Pieces.getInstance().setWinningPieceInfo(new PieceInfo(pX, lowY, pC), new PieceInfo(pX, highY, pC));
+            pieces.setWinningPieceInfo(new PieceInfo(pX, lowY, pC), new PieceInfo(pX, highY, pC));
             return true;
         }
 
@@ -71,7 +71,7 @@ public class Referee {
         return false;
     }
 
-    private static boolean checkDiagonal(PieceInfo pi) {
+    private static boolean checkDiagonal(Pieces pieces, PieceInfo pi) {
         int pX = pi.getX();
         int pY = pi.getY();
         int pC = pi.getColor();
@@ -83,13 +83,13 @@ public class Referee {
         int highX = pX;
         int highY = pY;
 
-        for ( ; (lowX >= 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(lowX - 1, lowY - 1) == pC); lowX--, lowY--) {
+        for ( ; (lowX >= 1) && (lowY >= 1) && (pieces.getPieceValue(lowX - 1, lowY - 1) == pC); lowX--, lowY--) {
         }
 
-        for (; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(highX + 1, highY + 1) == pC); highX++, highY++) {
+        for (; (highX < Constants.getOrder() - 1) && (highY < Constants.getOrder() - 1) && (pieces.getPieceValue(highX + 1, highY + 1) == pC); highX++, highY++) {
         }
         if (highX - lowX >= 4) {
-            Pieces.getInstance().setWinningPieceInfo(new PieceInfo(lowX, lowY, pC), new PieceInfo(highX, highY, pC));
+            pieces.setWinningPieceInfo(new PieceInfo(lowX, lowY, pC), new PieceInfo(highX, highY, pC));
             return true;
         }
 
@@ -101,13 +101,13 @@ public class Referee {
         highX = pX;
         lowY = pY;
 
-        for ( ; (lowX >= 1) && (highY < Constants.getOrder() - 1) && (Pieces.getInstance().getPieceValue(lowX - 1, highY + 1) == pC); lowX--, highY++) {
+        for ( ; (lowX >= 1) && (highY < Constants.getOrder() - 1) && (pieces.getPieceValue(lowX - 1, highY + 1) == pC); lowX--, highY++) {
         }
 
-        for ( ; (highX < Constants.getOrder() - 1) && (lowY >= 1) && (Pieces.getInstance().getPieceValue(highX + 1, lowY - 1) == pC); highX++, lowY--) {
+        for ( ; (highX < Constants.getOrder() - 1) && (lowY >= 1) && (pieces.getPieceValue(highX + 1, lowY - 1) == pC); highX++, lowY--) {
         }
         if (highX - lowX >= 4) {
-            Pieces.getInstance().setWinningPieceInfo(new PieceInfo(lowX, highY, pC), new PieceInfo(highX, lowY, pC));
+            pieces.setWinningPieceInfo(new PieceInfo(lowX, highY, pC), new PieceInfo(highX, lowY, pC));
             return true;
         }
 

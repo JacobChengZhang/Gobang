@@ -3,7 +3,7 @@ package Gomoku;
 public class Constants {
     static boolean gameStarted = false;
 
-    public enum  Mode{
+    enum  Mode{
         PvP, PvAI, AIvAI,
     }
     private static Mode mode = Mode.PvAI;
@@ -16,13 +16,15 @@ public class Constants {
         }
     }
 
-    public static final int aiThreadCycle = 300;
-    public static final int loadThreadCycle = 500;
+    static final int aiThreadCycle = 300;
+    static final int loadThreadCycle = 500;
 
     // max number of failed attempts that AI can make
-    public static final int maxAttempts = 10;
+    static final int maxAttempts = 10;
 
-    public static final boolean isManualLoad = true;
+    static final boolean isAIvAISilently = true;
+
+    static final boolean isManualLoad = true;
 
     // TODO add different ban rules
     private static boolean bans;

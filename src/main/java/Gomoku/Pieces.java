@@ -3,8 +3,6 @@ package Gomoku;
 import java.util.Stack;
 
 public class Pieces implements QueryPieces{
-    private static Pieces pieces = null;
-
     // store pieces in this two dimension array
     // 1: white   0:nil    -1:black
     private int[][] p;
@@ -15,15 +13,8 @@ public class Pieces implements QueryPieces{
     private PieceInfo winningPi1 = null;
     private PieceInfo winningPi2 = null;
 
-    private Pieces() {
+    Pieces() {
         this.p = new int[Constants.getOrder()][Constants.getOrder()];
-    }
-
-    public static Pieces getInstance() {
-        if (pieces == null || pieces.p.length != Constants.getOrder()) {
-            pieces = new Pieces();
-        }
-        return pieces;
     }
 
     @Override

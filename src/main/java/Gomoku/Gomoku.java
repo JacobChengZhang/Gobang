@@ -34,6 +34,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Gomoku extends Application{
     // UI elements
@@ -58,6 +60,7 @@ public class Gomoku extends Application{
     private int paneBoardHeight = 0;
     private int paneButtonWidth = 0;
 
+    private Pieces pieces = null;
 
     // In PvAI mode, human will always play with ai1
     private AiMove ai1 = null;
@@ -303,6 +306,8 @@ public class Gomoku extends Application{
 
         addControlButton();
 
+        pieces = new Pieces();
+
         return root;
     }
 
@@ -369,8 +374,8 @@ public class Gomoku extends Application{
             board.winAnimation = txt;
         }
         else {
-            PieceInfo pi1 = Pieces.getInstance().getWinningPieceInfo(1);
-            PieceInfo pi2 = Pieces.getInstance().getWinningPieceInfo(2);
+            PieceInfo pi1 = pieces.getWinningPieceInfo(1);
+            PieceInfo pi2 = pieces.getWinningPieceInfo(2);
             if (pi1 != null && pi2 != null) {
                 Line winningLine = new Line(calcPieceCoordinate(pi1.getX()), calcPieceCoordinate(pi1.getY()), calcPieceCoordinate(pi2.getX()), calcPieceCoordinate(pi2.getY()));
                 winningLine.setStroke(Color.RED);
@@ -386,7 +391,7 @@ public class Gomoku extends Application{
     }
 
     private void btnStartFunc() {
-        Pieces.getInstance().clearPieces();
+        pieces.clearPieces();
         clearAndRedrawBoard();
         Constants.gameStarted = true;
         sldSize.setDisable(true);
@@ -397,8 +402,8 @@ public class Gomoku extends Application{
         btnStart.setText("End");
         color = -1;
 
-        AiMove tempAiBlack = new AI_Guardian(-1, Pieces.getInstance());
-        AiMove tempAiWhite = new AI_Guardian(1, Pieces.getInstance());
+        AiMove tempAiBlack = new AI_Guardian(-1, pieces);
+        AiMove tempAiWhite = new AI_Guardian(1, pieces);
 
         switch (Constants.getMode()) {
             case PvAI: {
@@ -431,43 +436,105 @@ public class Gomoku extends Application{
                 break;
             }
             case AIvAI: {
-                Random ran = new Random();
-                if (ran.nextInt(2) % 2 == 0) {
-                    ai1 = tempAiWhite;
-                    ai1Color = 1;
-                    playerWhite = ai1.toString();
+                if (Constants.isAIvAISilently) {
+                    btnSave.setDisable(true);
 
-                    ai2 = tempAiBlack;
-                    ai2Color = -1;
-                    playerBlack = ai2.toString();
+                    ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
+                    for (int i = 0; i < 3; i++) {
+                        Pieces tempPieces = new Pieces();
+                        int tempAi1Color = -1;
+                        int tempAi2Color = 1;
+                        AiMove tempAi1 = new AI_Guardian(tempAi1Color, tempPieces);
+                        AiMove tempAi2 = new AI_Guardian(tempAi2Color, tempPieces);
+                        endThread = false;
+                        cachedThreadPool.execute(() -> {
+                            int tempColor = -1;
+                            while (Constants.gameStarted && !endThread) {
+                                AiMove ai;
+                                if (tempAi1.getColor() == tempColor) {
+                                    ai = tempAi1;
+                                }
+                                else {
+                                    ai = tempAi2;
+                                }
 
+                                PieceInfo aiMove = null;
+                                boolean isMoveValid = false;
+                                int attempt = 0;
+                                while (!isMoveValid && !endThread) {
+                                    // too many failed attempts make failure indeed
+                                    if (attempt < Constants.maxAttempts) {
+                                        attempt++;
+                                    }
+                                    else {
+                                        System.out.println(-ai.getColor() * 2);
+                                        return;
+                                    }
+
+                                    try {
+                                        aiMove = ai.nextMove();
+                                    }
+                                    catch(Exception ex) {
+                                        ex.printStackTrace();
+                                        continue;
+                                    }
+
+                                    if (tempPieces.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == tempAi1 ? tempAi1Color : tempAi2Color)) {
+                                        isMoveValid = true;
+                                        tempPieces.setPieceValue(aiMove);
+                                        tempPieces.piecePushStack(aiMove);
+                                    }
+                                }
+
+                                int checkResult = Referee.checkWinningCondition(tempPieces, aiMove);
+                                if (checkResult != 0) {
+                                    System.out.println(checkResult);
+                                    return;
+                                }
+
+                                tempColor = -tempColor;
+                            }
+                        });
+                    }
                 }
                 else {
-                    ai1 = tempAiBlack;
-                    ai1Color = -1;
-                    playerBlack = ai1.toString();
+                    Random ran = new Random();
+                    if (ran.nextInt(2) % 2 == 0) {
+                        ai1 = tempAiWhite;
+                        ai1Color = 1;
+                        playerWhite = ai1.toString();
 
-                    ai2 = tempAiWhite;
-                    ai2Color = 1;
-                    playerWhite = ai2.toString();
-                }
+                        ai2 = tempAiBlack;
+                        ai2Color = -1;
+                        playerBlack = ai2.toString();
 
-                thread = new Thread(() -> {
-                    while (Constants.gameStarted && !endThread) {
-                        AiMove ai;
-                        if (ai1.getColor() == color) {
-                            ai = ai1;
-                        }
-                        else {
-                            ai = ai2;
-                        }
+                    }
+                    else {
+                        ai1 = tempAiBlack;
+                        ai1Color = -1;
+                        playerBlack = ai1.toString();
 
-                        letAiMoveInOtherThread(ai);
+                        ai2 = tempAiWhite;
+                        ai2Color = 1;
+                        playerWhite = ai2.toString();
+                    }
 
-                        if (Constants.gameStarted && !endThread) {
-                            runAndWait(() ->
-                                    switchColor());
-                        }
+                    thread = new Thread(() -> {
+                        while (Constants.gameStarted && !endThread) {
+                            AiMove ai;
+                            if (ai1.getColor() == color) {
+                                ai = ai1;
+                            }
+                            else {
+                                ai = ai2;
+                            }
+
+                            letAiMoveInOtherThread(ai);
+
+                            if (Constants.gameStarted && !endThread) {
+                                runAndWait(() ->
+                                        switchColor());
+                            }
 //                        try {
 //                            Thread.sleep(Constants.aiThreadCycle);
 //                        }
@@ -476,10 +543,11 @@ public class Gomoku extends Application{
 //                            Platform.runLater(() ->
 //                                    lblTxt.setText("Something went wrong with AI thread."));
 //                        }
-                    }
-                });
-                endThread = false;
-                thread.start();
+                        }
+                    });
+                    endThread = false;
+                    thread.start();
+                }
             }
             default: {
                 break;
@@ -491,7 +559,7 @@ public class Gomoku extends Application{
         terminateThread();
 
         if (clearPieces) {
-            Pieces.getInstance().clearPieces();
+            pieces.clearPieces();
             clearBoard();
             lblTxt.setText("");
             btnSave.setDisable(true);
@@ -537,7 +605,7 @@ public class Gomoku extends Application{
         // used for saving replay
         StringBuilder sb = new StringBuilder();
         if (!Constants.gameStarted) {
-            PieceInfo tempPi = Pieces.getInstance().getWinningPieceInfo(1);
+            PieceInfo tempPi = pieces.getWinningPieceInfo(1);
             if (tempPi != null) {
                 if (tempPi.getColor() == -1) {
                     sb.insert(0, "// Black wins\n\n");
@@ -554,7 +622,7 @@ public class Gomoku extends Application{
         String date = df.format(new Date());
         sb.insert(0, "// " + date + "\n");
 
-        Pieces.getInstance().getReplayData(sb);
+        pieces.getReplayData(sb);
 
         try {
             File folder = new File("./replay/");
@@ -584,7 +652,7 @@ public class Gomoku extends Application{
         File selectedFile = fc.showOpenDialog(null);
         if (selectedFile != null) {
             //Constants.gameStarted = true;
-            Pieces.getInstance().clearPieces();
+            pieces.clearPieces();
             btnStart.setDisable(true);
             btnMode.setDisable(true);
             sldSize.setDisable(true);
@@ -641,11 +709,11 @@ public class Gomoku extends Application{
                                 }
 
                                 final PieceInfo tempPi = new PieceInfo(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor);
-                                if (Pieces.getInstance().setPieceValue(tempPi)) {
+                                if (pieces.setPieceValue(tempPi)) {
 
                                     Platform.runLater(() -> {
                                         drawPiece(tempPi, true);
-                                        int checkResult = Referee.checkWinningCondition(tempPi);
+                                        int checkResult = Referee.checkWinningCondition(pieces, tempPi);
                                         if (checkResult != 0) {
                                             playWinningAnimation(checkResult);
                                         }
@@ -715,7 +783,7 @@ public class Gomoku extends Application{
 
         PieceInfo redrawPi;
         try {
-            redrawPi = Pieces.getInstance().retract();
+            redrawPi = pieces.retract();
         }
         catch (Exception ex) {
             lblTxt.setText(ex.getMessage());
@@ -868,16 +936,16 @@ public class Gomoku extends Application{
                 continue;
             }
 
-            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+            if (pieces.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
                 isMoveValid = true;
-                Pieces.getInstance().setPieceValue(aiMove);
-                Pieces.getInstance().piecePushStack(aiMove);
+                pieces.setPieceValue(aiMove);
+                pieces.piecePushStack(aiMove);
                 drawPiece(aiMove, true);
             }
         }
 
         lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move");
-        int checkResult = Referee.checkWinningCondition(aiMove);
+        int checkResult = Referee.checkWinningCondition(pieces, aiMove);
         if (checkResult != 0) {
             finishGame(checkResult);
         }
@@ -909,10 +977,10 @@ public class Gomoku extends Application{
                 continue;
             }
 
-            if (Pieces.getInstance().checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+            if (pieces.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
                 isMoveValid = true;
-                Pieces.getInstance().setPieceValue(aiMove);
-                Pieces.getInstance().piecePushStack(aiMove);
+                pieces.setPieceValue(aiMove);
+                pieces.piecePushStack(aiMove);
 
                 final PieceInfo _aiMove = new PieceInfo(aiMove.getX(), aiMove.getY(), aiMove.getColor(), true);
                 if (!endThread) {
@@ -925,7 +993,7 @@ public class Gomoku extends Application{
         runAndWait(() ->
                 lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move"));
 
-        int checkResult = Referee.checkWinningCondition(aiMove);
+        int checkResult = Referee.checkWinningCondition(pieces, aiMove);
         if (checkResult != 0) {
             runAndWait(() ->
                     finishGame(checkResult));
@@ -937,11 +1005,11 @@ public class Gomoku extends Application{
             int seqX = calcPieceSeq(me.getX());
             int seqY = calcPieceSeq(me.getY());
             PieceInfo tempPi = new PieceInfo(seqX, seqY, color, false);
-            if (Pieces.getInstance().setPieceValue(tempPi)) {
-                Pieces.getInstance().piecePushStack(tempPi);
+            if (pieces.setPieceValue(tempPi)) {
+                pieces.piecePushStack(tempPi);
                         drawPiece(tempPi, true);
 
-                int checkResult = Referee.checkWinningCondition(tempPi);
+                int checkResult = Referee.checkWinningCondition(pieces, tempPi);
                 if (checkResult != 0) {
                     finishGame(checkResult);
                 }

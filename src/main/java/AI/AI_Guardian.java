@@ -3,6 +3,8 @@ package AI;
 import Gomoku.*;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 // The AI_Herald naming follows Herald, Guardian, Crusader, Archon, Legend, Ancient, and Divine which are quoted from DotA2 Rank Medals.
 
@@ -27,11 +29,13 @@ public class AI_Guardian implements AiMove {
     private int szLowestY = 0;
     private int szHighestY = order - 1;
 
+    private ExecutorService cachedThreadPool;
 
     public AI_Guardian(int color, QueryPieces pieces) {
         this.color = color;
         this.pieces = pieces;
         this.p = new int[order][order];
+        this.cachedThreadPool = Executors.newCachedThreadPool();
     }
 
     @Override
