@@ -27,6 +27,7 @@ public class AI_Guardian implements AiMove {
     private int szLowestY = 0;
     private int szHighestY = order - 1;
 
+
     public AI_Guardian(int color, QueryPieces pieces) {
         this.color = color;
         this.pieces = pieces;

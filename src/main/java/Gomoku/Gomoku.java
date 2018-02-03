@@ -611,6 +611,9 @@ public class Gomoku extends Application{
                                     clearAndRedrawBoard();
                                     sldSize.setValue(replayOrder);
                                     lblSize.setText("Size: " + replayOrder);
+                                    if (Constants.isManualLoad) {
+                                        lblTxt.setText("Click to replay step by step.");
+                                    }
                                 });
                                 break;
                             }
@@ -660,8 +663,6 @@ public class Gomoku extends Application{
                         line++;
 
                         if (Constants.isManualLoad) {
-                            Platform.runLater(() ->
-                                    lblTxt.setText("Click to replay step by step."));
                             while (!clicked) {
                                 Thread.sleep(100);
                             }
@@ -946,6 +947,7 @@ public class Gomoku extends Application{
                 }
                 else {
                     if (nextIsAi) {
+                        // TODO use singleThreadExecutor to improve performance
                         thread = new Thread(() -> {
                             if (Constants.gameStarted && !endThread) {
                                 AiMove ai = ai1;
