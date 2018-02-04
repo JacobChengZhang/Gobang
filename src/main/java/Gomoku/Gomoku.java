@@ -1,7 +1,6 @@
 package Gomoku;
 
 import AI.AI_Guardian;
-import AI.AI_Herald;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -22,7 +21,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
@@ -67,6 +65,9 @@ public class Gomoku extends Application{
     private AiMove ai2 = null;
     private int ai1Color = 0;
     private int ai2Color = 0;
+
+    // used for asynchronous tasks like AIvAI silently
+    ExecutorService fixedThreadPool = Executors.newFixedThreadPool(Constants.threadPoolLimit);
 
 
     // thread for AI trigger or Replay loading
@@ -143,10 +144,9 @@ public class Gomoku extends Application{
 
     private void clearAndRedrawBoard() {
         // clear board first
+        // use getInstance() to update board adapting order in Constants
         board = Board.getInstance();
         board.clear();
-
-        // TODO (seperate clear from drawBoard) dont redraw everything, just remove pieces' nodes
 
         // draw lines
         for (int i = 0; i < Constants.getOrder(); i++) {
@@ -329,6 +329,30 @@ public class Gomoku extends Application{
     private void finishGame(int result) {
         terminateThread();
 
+        switch(Constants.getMode()) {
+            case PvAI: {
+                fixedThreadPool.execute(() ->
+                        ai1.gameEnd(result));
+                break;
+            }
+            case AIvAI: {
+                if (Constants.isAIvAISilently) {
+
+                }
+                else {
+                    fixedThreadPool.execute(() ->
+                            ai1.gameEnd(result));
+                    fixedThreadPool.execute(() ->
+                            ai2.gameEnd(result));
+                }
+                break;
+            }
+            default: {
+                break;
+            }
+        }
+
+
         playWinningAnimation(result);
 
         switch (result) {
@@ -354,7 +378,7 @@ public class Gomoku extends Application{
             }
             default: {
                 lblTxt.setText("Caught a bug in Referee.");
-                System.out.println("Caught a bug in Referee.");
+                System.err.println("Caught a bug in Referee.");
                 //System.exit(1);
                 break;
             }
@@ -384,7 +408,7 @@ public class Gomoku extends Application{
                 board.winAnimation = winningLine;
             }
             else {
-                //System.out.println("Caught a bug and failed to fetch winning PieceInfo");
+                //System.err.println("Caught a bug and failed to fetch winning PieceInfo");
                 //System.exit(1);
             }
         }
@@ -438,18 +462,18 @@ public class Gomoku extends Application{
             case AIvAI: {
                 if (Constants.isAIvAISilently) {
                     btnSave.setDisable(true);
+                    lblTxt.setText("AIvAI in background silently...");
 
-                    ExecutorService cachedThreadPool = Executors.newCachedThreadPool();
-                    for (int i = 0; i < 3; i++) {
+                    for (int i = 0; i < Constants.threadPoolLimit; i++) {
                         Pieces tempPieces = new Pieces();
                         int tempAi1Color = -1;
                         int tempAi2Color = 1;
                         AiMove tempAi1 = new AI_Guardian(tempAi1Color, tempPieces);
                         AiMove tempAi2 = new AI_Guardian(tempAi2Color, tempPieces);
                         endThread = false;
-                        cachedThreadPool.execute(() -> {
+                        fixedThreadPool.execute(() -> {
                             int tempColor = -1;
-                            while (Constants.gameStarted && !endThread) {
+                            while (!endThread) {
                                 AiMove ai;
                                 if (tempAi1.getColor() == tempColor) {
                                     ai = tempAi1;
@@ -488,12 +512,18 @@ public class Gomoku extends Application{
 
                                 int checkResult = Referee.checkWinningCondition(tempPieces, aiMove);
                                 if (checkResult != 0) {
+                                    fixedThreadPool.execute(() ->
+                                            tempAi1.gameEnd(checkResult));
+                                    fixedThreadPool.execute(() ->
+                                            tempAi2.gameEnd(checkResult));
                                     System.out.println(checkResult);
                                     return;
                                 }
 
                                 tempColor = -tempColor;
                             }
+
+
                         });
                     }
                 }

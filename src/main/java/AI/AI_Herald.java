@@ -42,6 +42,11 @@ public class AI_Herald implements AiMove {
         return makeDecision();
     }
 
+    @Override
+    public void gameEnd(int result) {
+
+    }
+
     private void aiTest() {
         /*
         oiioo

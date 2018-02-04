@@ -14,7 +14,7 @@ public class AI_Guardian implements AiMove {
     private final int[][] p; // analog pieces
     private final int order = Constants.getOrder();
 
-    private final int depth = 3; // include 0
+    private final int depth = 3; // include 0, i.e. [0, depth]
     private _PieceInfo bestMove = null;
 
     private int lowestX = 0;
@@ -65,6 +65,11 @@ public class AI_Guardian implements AiMove {
         else {
             return null;
         }
+    }
+
+    @Override
+    public void gameEnd(int result) {
+        System.out.println(this.toString() + "Game ended.");
     }
 
     private void updateAnalogPieces() {

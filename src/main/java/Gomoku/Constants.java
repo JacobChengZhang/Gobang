@@ -16,11 +16,14 @@ public class Constants {
         }
     }
 
+    static final int threadPoolLimit = 3;
     static final int aiThreadCycle = 300;
     static final int loadThreadCycle = 500;
 
     // max number of failed attempts that AI can make
     static final int maxAttempts = 10;
+
+    // TODO add a calculating time limit for AI
 
     static final boolean isAIvAISilently = true;
 
