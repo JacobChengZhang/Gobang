@@ -1,6 +1,5 @@
 package Gomoku;
 
-import AI.AI_Guardian;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
@@ -19,7 +18,6 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -28,1059 +26,901 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.*;
+import java.lang.reflect.Constructor;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Random;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class Gomoku extends Application{
-    // UI elements
-    private FlowPane root = null;
+import Gomoku.Configuration.*;
+import static Gomoku.Configuration.Mode.*;
+import Gomoku.Referee.*;
+import static Gomoku.Referee.GameState.*;
 
-    private Pane paneBoard = null;
-    private Pane paneButton = null;
-    private ObservableList<Node> paneBoardChildren = null;
+import AI.AI_Guardian;
 
-    private Board board = null;
+public class Gomoku extends Application {
 
-    private Button btnStart = null;
-    private Button btnMode = null;
-    private Slider sldSize = null;
-    private Label lblSize = null;
-    private Button btnSave = null;
-    private Button btnLoad = null;
-    private Button btnRetract = null;
-    private Label lblTxt = null;
+  static Mode mode = PvAI;
+  static boolean gameStarted = false;
+  static int order = 15; // better between 11~19
+  static int border = 101; // border when order = 15
 
-    private int paneWidth = 0;
-    private int paneBoardHeight = 0;
-    private int paneButtonWidth = 0;
+  // UI elements
+  private FlowPane root = null;
+  private Pane paneBoard = null;
+  private Pane paneButton = null;
+  private ObservableList<Node> paneBoardChildren = null;
 
-    private Pieces pieces = null;
+  private BoardUI boardUI = null;
 
-    // In PvAI mode, human will always play with ai1
-    private AiMove ai1 = null;
-    private AiMove ai2 = null;
-    private int ai1Color = 0;
-    private int ai2Color = 0;
+  private Button btnStart = null;
+  private Button btnMode = null;
+  private Slider sldSize = null;
+  private Label lblSize = null;
+  private Button btnSave = null;
+  private Button btnLoad = null;
+  private Button btnRetract = null;
+  private Label lblTxt = null;
 
-    // used for asynchronous tasks like AIvAI silently
-    ExecutorService fixedThreadPool = Executors.newFixedThreadPool(Constants.threadPoolLimit);
+  static int paneWidth = 0;
+  static int paneBoardHeight = 0;
+  private static int paneButtonWidth = 0;
+
+  private Board board = null;
+
+  // In PvAI mode, human will always play with ai1
+  private AiMove ai1 = null;
+  private AiMove ai2 = null;
+  private int ai1Color = 0;
+  private int ai2Color = 0;
+
+  // used for asynchronous tasks like AIvAI silently
+  private ExecutorService fixedThreadPool = Executors.newFixedThreadPool(Configuration.threadPoolLimit);
+
+  // thread for AI trigger or Replay loading
+  private Thread thread = null;
+  private boolean endThread = false;
+
+  // used for manually load replay
+  private boolean clicked = false;
+
+  // -1:black    1: white   (Black first)
+  private int color = -1;
+
+  // names of players
+  String playerWhite = null;
+  String playerBlack = null;
 
 
-    // thread for AI trigger or Replay loading
-    private Thread thread = null;
-    private boolean endThread = false;
+  public static void main(String[] args) {
+    launch(args);
+  }
 
-    // used for manually load replay
-    private boolean clicked = false;
+  @Override
+  public void start(Stage primaryStage) {
+    primaryStage.setTitle("Gomoku");
+    primaryStage.setResizable(false);
+    primaryStage.setScene(new Scene(startGame()));
+    primaryStage.show();
+  }
 
+  private Parent startGame() {
+    createPane();
 
-    // -1:black    1: white
-    private int color = -1;
+    boardUI.clearAndRedrawBoard();
 
-    // names of players
-    String playerWhite = null;
-    String playerBlack = null;
+    addControlButton();
 
+    return root;
+  }
 
-    public static void main(String[] args) {
-        launch(args);
+  private void createPane() {
+    this.root = new FlowPane(Orientation.HORIZONTAL);
+    paneBoard = new Pane();
+    paneButton = new Pane();
+
+    // paneWidth: |<-   minBorder  ->|<-   ((maxOrder - 1) * increment)   ->|<-   minBorder   ->|   (Y is the same)
+    paneWidth = Configuration.minBorder * 2 + (Configuration.maxOrder - 1) * Configuration.increment;
+    paneBoardHeight = Configuration.minBorder * 2 + (Configuration.maxOrder - 1) * Configuration.increment;
+    paneButtonWidth = Configuration.btnPaneWidth;
+
+    root.setPrefSize(paneWidth + paneButtonWidth, paneBoardHeight);
+    paneBoard.setPrefSize(paneWidth, paneBoardHeight);
+    paneButton.setPrefSize(paneButtonWidth, paneBoardHeight);
+
+    paneBoard.setOnMouseClicked(me -> {
+      clicked = true;
+
+      if (!gameStarted) {
+        return;
+      } else if (mode == Configuration.Mode.AIvAI) {
+        return;
+      } else if (mode == PvAI) {
+        if (thread == null || thread.getState() == Thread.State.TERMINATED)
+          letHumanMove(true, me);
+      } else { // Configuration.Mode.PvP
+        letHumanMove(false, me);
+      }
+    });
+
+    board = new Board();
+    paneBoardChildren = paneBoard.getChildren();
+    boardUI = BoardUI.getInstance(board, paneBoardChildren);
+
+    root.getChildren().add(paneBoard);
+    root.getChildren().add(paneButton);
+  }
+
+  private void addControlButton() {
+    btnStart = new Button("Start");
+    btnStart.setPrefSize(Configuration.btnPaneWidth / 2, Configuration.btnPaneWidth / 4);
+    btnStart.setOnMouseClicked(event -> {
+      if (gameStarted) {
+        btnEndFunc(true);
+      } else {
+        btnStartFunc();
+      }
+    });
+
+    Separator sp1 = new Separator(Orientation.HORIZONTAL);
+
+    btnMode = new Button(mode.toString());
+    btnMode.setPrefSize(Configuration.btnPaneWidth / 2, Configuration.btnPaneWidth / 4);
+    btnMode.setOnMouseClicked(event ->
+            btnModeFunc());
+
+    lblSize = new Label("Size: " + order);
+    lblSize.setWrapText(true);
+
+    sldSize = new Slider(Configuration.minOrder, Configuration.maxOrder, order);
+    sldSize.valueProperty().addListener((ov, old_val, new_val) -> {
+      if ((new_val.intValue() != order) && (new_val.intValue() % 2 != 0)) {
+        Utils.setOrder(new_val.intValue());
+        lblSize.setText("Size: " + new_val.intValue());
+      }
+    });
+
+    Separator sp2 = new Separator(Orientation.HORIZONTAL);
+
+    btnSave = new Button("Save");
+    btnSave.setPrefSize(Configuration.btnPaneWidth / 2, Configuration.btnPaneWidth / 4);
+    btnSave.setDisable(true);
+    btnSave.setOnMouseClicked(event ->
+            btnSaveFunc());
+
+    btnLoad = new Button("Load");
+    btnLoad.setPrefSize(Configuration.btnPaneWidth / 2, Configuration.btnPaneWidth / 4);
+    btnLoad.setOnMouseClicked(event -> {
+      if (thread == null || thread.getState() != Thread.State.TIMED_WAITING) {
+        btnLoadFunc();
+      } else {
+        btnEndFunc(true);
+        btnLoad.setText("Load");
+      }
+    });
+
+    Separator sp3 = new Separator(Orientation.HORIZONTAL);
+
+    btnRetract = new Button("Retract");
+    btnRetract.setPrefSize(Configuration.btnPaneWidth / 2, Configuration.btnPaneWidth / 4);
+    btnRetract.setDisable(true);
+    btnRetract.setOnMouseClicked(event ->
+            btnRetractFunc());
+
+    Separator sp4 = new Separator(Orientation.HORIZONTAL);
+
+    lblTxt = new Label("Gomoku " + Configuration.version + ". \nHope you enjoy!\n(Developed by JacobChengZhang)");
+    lblTxt.setWrapText(true);
+
+    VBox vBox = new VBox();
+    vBox.setPrefSize(paneButtonWidth, paneBoardHeight);
+    vBox.setPadding(new Insets(20, 15, 20, 15));
+    vBox.setSpacing(20);
+    vBox.getChildren().addAll(btnStart, sp1, btnMode, sldSize, lblSize, sp2, btnSave, btnLoad, sp3, btnRetract, sp4, lblTxt);
+    vBox.setAlignment(Pos.TOP_CENTER);
+
+    paneButton.getChildren().add(vBox);
+  }
+
+  private void terminateThread() {
+    while (thread != null && thread.getState() != Thread.State.TERMINATED) {
+      endThread = true;
+      thread.interrupt();
     }
+  }
 
-    @Override
-    public void start(Stage primaryStage) {
-        primaryStage.setTitle("Gomoku");
-        primaryStage.setResizable(false);
-        primaryStage.setScene(new Scene(startGame()));
-        primaryStage.show();
-    }
+  private void finishGame(GameState ending) {
+    terminateThread();
 
-    private void createPane() {
-        this.root = new FlowPane(Orientation.HORIZONTAL);
-        paneBoard = new Pane();
-        paneButton = new Pane();
+    switch (mode) {
+      case PvAI: {
+        fixedThreadPool.execute(() ->
+                ai1.gameEnds(ending));
+        break;
+      }
+      case AIvAI: {
+        if (Configuration.isAIvAISilently) {
 
-        // paneWidth: |<-   minBorder  ->|<-   ((maxOrder - 1) * increment)   ->|<-   minBorder   ->|   (Y is the same)
-        paneWidth = Constants.minBorder * 2 + (Constants.maxOrder - 1) * Constants.increment;
-        paneBoardHeight = Constants.minBorder * 2 + (Constants.maxOrder - 1) * Constants.increment;
-        paneButtonWidth = Constants.btnPaneWidth;
-
-        root.setPrefSize(paneWidth + paneButtonWidth, paneBoardHeight);
-        paneBoard.setPrefSize(paneWidth, paneBoardHeight);
-        paneButton.setPrefSize(paneButtonWidth, paneBoardHeight);
-
-        paneBoard.setOnMouseClicked(me -> {
-            clicked = true;
-
-            if (!Constants.gameStarted) {
-                return;
-            }
-            else if (Constants.getMode() == Constants.Mode.AIvAI) {
-                return;
-            }
-            else if (Constants.getMode() == Constants.Mode.PvAI) {
-                if (thread == null || thread.getState() == Thread.State.TERMINATED)
-                    letHumanMove(true, me);
-            }
-            else { // Constants.Mode.PvP
-                letHumanMove(false, me);
-            }
-        });
-
-        paneBoardChildren = paneBoard.getChildren();
-        board = Board.getInstance();
-        board.paneBoardChildren = paneBoardChildren;
-        
-        root.getChildren().add(paneBoard);
-        root.getChildren().add(paneButton);
-    }
-
-    private void clearBoard() {
-        board.clearPieces();
-    }
-
-    private void clearAndRedrawBoard() {
-        // clear board first
-        // use getInstance() to update board adapting order in Constants
-        board = Board.getInstance();
-        board.clear();
-
-        // draw lines
-        for (int i = 0; i < Constants.getOrder(); i++) {
-            Line lineX = new Line(Constants.getBorder(), calcPieceCoordinate(i), paneWidth - Constants.getBorder(), calcPieceCoordinate(i));
-            Line lineY = new Line(calcPieceCoordinate(i), Constants.getBorder(), calcPieceCoordinate(i), paneBoardHeight - Constants.getBorder());
-            lineX.setStrokeWidth(Constants.lineWidth);
-            lineY.setStrokeWidth(Constants.lineWidth);
-            paneBoardChildren.add(lineX);
-            paneBoardChildren.add(lineY);
-
-            board.lineListX.add(lineX);
-            board.lineListY.add(lineY);
+        } else {
+          fixedThreadPool.execute(() ->
+                  ai1.gameEnds(ending));
+          fixedThreadPool.execute(() ->
+                  ai2.gameEnds(ending));
         }
-
-        // draw five dots
-        drawDot(new PieceInfo(3, 3, 0));
-        drawDot(new PieceInfo(3, Constants.getOrder() - 4, 0));
-        drawDot(new PieceInfo(Constants.getOrder() - 4, 3, 0));
-        drawDot(new PieceInfo(Constants.getOrder() - 4, Constants.getOrder() - 4, 0));
-        drawDot(new PieceInfo((Constants.getOrder() - 1) / 2, (Constants.getOrder() - 1) / 2, 0));
-
-        // TODO draw number 1 ~ 15 and characters A ~ O (not necessary)
+        break;
+      }
+      default: {
+        break;
+      }
     }
 
-    private void addControlButton() {
-        btnStart = new Button("Start");
-        btnStart.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
-        btnStart.setOnMouseClicked(event -> {
-            if (Constants.gameStarted) {
-                btnEndFunc(true);
-            }
-            else {
-                btnStartFunc();
-            }
-        });
+    playWinningAnimation(ending);
 
-        Separator sp1 = new Separator(Orientation.HORIZONTAL);
-
-        btnMode = new Button(Constants.getMode().toString());
-        btnMode.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
-        btnMode.setOnMouseClicked(event ->
-                btnModeFunc());
-
-        lblSize = new Label("Size: " + Constants.getOrder());
-        lblSize.setWrapText(true);
-
-        sldSize = new Slider(Constants.minOrder, Constants.maxOrder, Constants.getOrder());
-        sldSize.valueProperty().addListener((ov, old_val, new_val) -> {
-            if ((new_val.intValue() != Constants.getOrder()) && (new_val.intValue() % 2 != 0)) {
-                Constants.setOrder(new_val.intValue());
-                clearAndRedrawBoard();
-                lblSize.setText("Size: " + new_val.intValue());
-            }
-        });
-
-        Separator sp2 = new Separator(Orientation.HORIZONTAL);
-
-        btnSave = new Button("Save");
-        btnSave.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
-        btnSave.setDisable(true);
-        btnSave.setOnMouseClicked(event ->
-                btnSaveFunc());
-
-        btnLoad = new Button("Load");
-        btnLoad.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
-        btnLoad.setOnMouseClicked(event -> {
-            if (thread == null || thread.getState() != Thread.State.TIMED_WAITING) {
-                btnLoadFunc();
-            }
-            else {
-                btnEndFunc(true);
-                btnLoad.setText("Load");
-            }
-        });
-
-        Separator sp3 = new Separator(Orientation.HORIZONTAL);
-
-        btnRetract = new Button("Retract");
-        btnRetract.setPrefSize(Constants.btnPaneWidth / 2, Constants.btnPaneWidth / 4);
-        btnRetract.setDisable(true);
-        btnRetract.setOnMouseClicked(event ->
-                btnRetractFunc());
-
-        Separator sp4 = new Separator(Orientation.HORIZONTAL);
-
-        lblTxt = new Label("Gomoku " + Constants.version + ". \nHope you enjoy!\n(Developed by JacobChengZhang)");
-        lblTxt.setWrapText(true);
-
-        VBox vBox = new VBox();
-        vBox.setPrefSize(paneButtonWidth, paneBoardHeight);
-        vBox.setPadding(new Insets(20, 15, 20, 15));
-        vBox.setSpacing(20);
-        vBox.getChildren().addAll(btnStart, sp1, btnMode, sldSize, lblSize, sp2, btnSave, btnLoad, sp3, btnRetract, sp4, lblTxt);
-        vBox.setAlignment(Pos.TOP_CENTER);
-
-        paneButton.getChildren().add(vBox);
+    switch (ending) {
+      case WHITE_WIN: {
+        lblTxt.setText("White(" + playerWhite + ") wins!");
+        break;
+      }
+      case BLACK_GIVE_UP: {
+        lblTxt.setText("Black( " + playerBlack + ") give up.\nWhite(" + playerWhite + ") wins!");
+        break;
+      }
+      case BLACK_WIN: {
+        lblTxt.setText("Black(" + playerBlack + ") wins!");
+        break;
+      }
+      case WHITE_GIVE_UP: {
+        lblTxt.setText("White(" + playerWhite + ") give up.\nBlack(" + playerBlack + ") wins!");
+        break;
+      }
+      case DRAW: {
+        lblTxt.setText("Oops, " + playerBlack + " and " + playerWhite + "\nended in a draw!");
+        break;
+      }
+      default: {
+        lblTxt.setText("Caught a bug in Referee.");
+        System.err.println("Caught a bug in Referee.");
+        //System.exit(1);
+        break;
+      }
     }
 
-    private void drawDot(PieceInfo pi) {
-        Circle dot = new Circle();
-        dot.setCenterX(calcPieceCoordinate(pi.getX()));
-        dot.setCenterY(calcPieceCoordinate(pi.getY()));
-        dot.setRadius(Constants.dotRadius);
-        dot.setFill(Color.BLACK);
-        dot.setStroke(Color.BLACK);
+    btnEndFunc(false);
+  }
 
-        paneBoardChildren.add(dot);
-        board.dotList.add(dot);
+  private void playWinningAnimation(GameState ending) {
+    //TODO turn static Text into really animation...
+    if (ending == DRAW) { // draw
+      Text txt = new Text(paneWidth / 3, paneBoardHeight / 2, "Draw!");
+      txt.setFill(Color.RED);
+      txt.setFont(new Font("Courier", 6 * Configuration.pieceRadius));
+      txt.setTextAlignment(TextAlignment.CENTER);
+      paneBoardChildren.add(txt);
+      boardUI.winAnimation = txt;
+    } else {
+      Piece pi1 = board.getWinningPiece(1);
+      Piece pi2 = board.getWinningPiece(2);
+      if (pi1 != null && pi2 != null) {
+        Line winningLine = new Line(Utils.calcPieceCoordinate(pi1.getX()), Utils.calcPieceCoordinate(pi1.getY()), Utils.calcPieceCoordinate(pi2.getX()), Utils.calcPieceCoordinate(pi2.getY()));
+        winningLine.setStroke(Color.RED);
+        winningLine.setStrokeWidth(Configuration.pieceRadius / 3);
+        paneBoardChildren.add(winningLine);
+        boardUI.winAnimation = winningLine;
+      } else {
+        //System.err.println("Caught a bug and failed to fetch winning Piece");
+        //System.exit(1);
+      }
+    }
+  }
+
+  private void btnStartFunc() {
+    board.clearPieces();
+    boardUI.clearAndRedrawBoard();
+    gameStarted = true;
+    sldSize.setDisable(true);
+    btnMode.setDisable(true);
+    btnSave.setDisable(false);
+    btnLoad.setDisable(true);
+    lblTxt.setText("Black Move");
+    btnStart.setText("End");
+    color = -1;
+
+    AiMove tempAiBlack = null;
+    AiMove tempAiWhite = null;
+
+    try {
+      Class<?> clsB = Class.forName(Configuration.aiBlack);
+      Class<?> clsW = Class.forName(Configuration.aiWhite);
+      //TODO constructor of AI object may be modified (as interface?)
+      Constructor<?> consB = clsB.getConstructor(int.class, PieceQuery.class);
+      Constructor<?> consW = clsW.getConstructor(int.class, PieceQuery.class);
+      tempAiBlack = (AiMove)consB.newInstance(-1, board);
+      tempAiWhite = (AiMove)consW.newInstance(1, board);
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.exit(1);
     }
 
-    private void drawPiece(PieceInfo pi, boolean isNew) {
-        final Circle p = new Circle();
-        p.setCenterX(calcPieceCoordinate(pi.getX()));
-        p.setCenterY(calcPieceCoordinate(pi.getY()));
-        p.setRadius(Constants.pieceRadius);
-        if (pi.getColor() == 1) {
-            p.setFill(Color.WHITE);
+    switch (mode) {
+      case PvAI: {
+        btnRetract.setDisable(false);
+
+        Random ran = new Random();
+        if (ran.nextInt(2) % 2 == 0) {
+          ai1 = tempAiBlack;
+          ai1Color = -1;
+          playerBlack = ai1.getName();
+          playerWhite = "Human";
+
+          // When AI_Herald first(white), switch Human's color and let AI_Herald make one move first
+          switchColor();
+
+          letAiMove(ai1);
+        } else {
+          ai1 = tempAiWhite;
+          ai1Color = 1;
+          playerBlack = "Human";
+          playerWhite = ai1.getName();
         }
-        else {
-            p.setFill(Color.BLACK);
-        }
-        p.setStrokeWidth(Constants.lineWidth);
-        p.setStroke(Color.BLACK);
+        break;
+      }
+      case PvP: {
+        btnRetract.setDisable(false);
+        playerBlack = "Human";
+        playerWhite = "Human";
+        break;
+      }
+      case AIvAI: {
+        if (Configuration.isAIvAISilently) {
+          btnSave.setDisable(true);
+          lblTxt.setText("AIvAI in background silently...");
 
-        paneBoardChildren.add(p);
-        board.pieceList.add(p);
-
-        if (isNew) {
-            if (board.redDot == null) {
-                board.redDot = new Circle();
-                board.redDot.setCenterX(calcPieceCoordinate(pi.getX()));
-                board.redDot.setCenterY(calcPieceCoordinate(pi.getY()));
-
-//            // red ring style
-//            redDot.setRadius(Constants.pieceRadius);
-//            redDot.setFill(Color.TRANSPARENT);
-//            redDot.setStrokeWidth(Constants.lineWidth * 3);
-//            redDot.setStroke(Color.RED);
-
-                // red dot style
-                board.redDot.setRadius(Constants.pieceRadius / 4);
-                board.redDot.setFill(Color.RED);
-                board.redDot.setStrokeWidth(Constants.lineWidth);
-                board.redDot.setStroke(Color.RED);
-                paneBoardChildren.add(board.redDot);
-            } else {
-                board.redDot.relocate(calcPieceCoordinate(pi.getX()) - board.redDot.getRadius(), calcPieceCoordinate(pi.getY()) - board.redDot.getRadius());
-                board.redDot.toFront();
-            }
-        }
-    }
-
-    private Parent startGame() {
-        createPane();
-
-        clearAndRedrawBoard();
-
-        addControlButton();
-
-        pieces = new Pieces();
-
-        return root;
-    }
-
-    private void terminateThread() {
-        while (thread != null && thread.getState() != Thread.State.TERMINATED) {
-            endThread = true;
-            thread.interrupt();
-        }
-    }
-
-    /**
-     * @param result
-     * 1    -> White wins
-     * 2    -> Black give up, White wins
-     * -1   -> Black wins
-     * -2   -> White give up, Black wins
-     * -100 -> Draw game
-     */
-    private void finishGame(int result) {
-        terminateThread();
-
-        switch(Constants.getMode()) {
-            case PvAI: {
-                fixedThreadPool.execute(() ->
-                        ai1.gameEnd(result));
-                break;
-            }
-            case AIvAI: {
-                if (Constants.isAIvAISilently) {
-
+          for (int i = 0; i < Configuration.threadPoolLimit; i++) {
+            Board tempBoard = new Board();
+            int tempAi1Color = -1;
+            int tempAi2Color = 1;
+            AiMove tempAi1 = new AI_Guardian(tempAi1Color, tempBoard);
+            AiMove tempAi2 = new AI_Guardian(tempAi2Color, tempBoard);
+            endThread = false;
+            fixedThreadPool.execute(() -> {
+              int tempColor = -1;
+              while (!endThread) {
+                AiMove ai;
+                if (tempAi1.getColor() == tempColor) {
+                  ai = tempAi1;
+                } else {
+                  ai = tempAi2;
                 }
-                else {
-                    fixedThreadPool.execute(() ->
-                            ai1.gameEnd(result));
-                    fixedThreadPool.execute(() ->
-                            ai2.gameEnd(result));
+
+                Piece aiMove = null;
+                boolean isMoveValid = false;
+                int attempt = 0;
+                while (!isMoveValid && !endThread) {
+                  // too many failed attempts make failure indeed
+                  if (attempt < Configuration.maxAttempts) {
+                    attempt++;
+                  } else {
+                    System.out.println(-ai.getColor() * 2);
+                    return;
+                  }
+
+                  try {
+                    aiMove = ai.nextMove();
+                  } catch (Exception ex) {
+                    ex.printStackTrace();
+                    continue;
+                  }
+
+                  if (tempBoard.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == tempAi1 ? tempAi1Color : tempAi2Color)) {
+                    isMoveValid = true;
+                    tempBoard.setPieceValue(aiMove);
+                    tempBoard.pushPieceStack(aiMove);
+                  }
                 }
-                break;
-            }
-            default: {
-                break;
-            }
-        }
 
-
-        playWinningAnimation(result);
-
-        switch (result) {
-            case 1: {
-                lblTxt.setText("White(" + playerWhite + ") wins!");
-                break;
-            }
-            case 2: {
-                lblTxt.setText("Black( " + playerBlack + ") give up.\nWhite(" + playerWhite + ") wins!");
-                break;
-            }
-            case -1: {
-                lblTxt.setText("Black(" + playerBlack + ") wins!");
-                break;
-            }
-            case -2: {
-                lblTxt.setText("White(" + playerWhite + ") give up.\nBlack(" + playerBlack + ") wins!");
-                break;
-            }
-            case -100: {
-                lblTxt.setText("Oops, " + playerBlack + " and " + playerWhite + "\nended in a draw!");
-                break;
-            }
-            default: {
-                lblTxt.setText("Caught a bug in Referee.");
-                System.err.println("Caught a bug in Referee.");
-                //System.exit(1);
-                break;
-            }
-        }
-
-        btnEndFunc(false);
-    }
-
-    private void playWinningAnimation(int result) {
-        //TODO turn static Text into really animation...
-        if (result == -100) { // draw
-            Text txt = new Text(paneWidth / 3, paneBoardHeight / 2, "Draw!");
-            txt.setFill(Color.RED);
-            txt.setFont(new Font("Courier", 6 * Constants.pieceRadius));
-            txt.setTextAlignment(TextAlignment.CENTER);
-            paneBoardChildren.add(txt);
-            board.winAnimation = txt;
-        }
-        else {
-            PieceInfo pi1 = pieces.getWinningPieceInfo(1);
-            PieceInfo pi2 = pieces.getWinningPieceInfo(2);
-            if (pi1 != null && pi2 != null) {
-                Line winningLine = new Line(calcPieceCoordinate(pi1.getX()), calcPieceCoordinate(pi1.getY()), calcPieceCoordinate(pi2.getX()), calcPieceCoordinate(pi2.getY()));
-                winningLine.setStroke(Color.RED);
-                winningLine.setStrokeWidth(Constants.pieceRadius / 3);
-                paneBoardChildren.add(winningLine);
-                board.winAnimation = winningLine;
-            }
-            else {
-                //System.err.println("Caught a bug and failed to fetch winning PieceInfo");
-                //System.exit(1);
-            }
-        }
-    }
-
-    private void btnStartFunc() {
-        pieces.clearPieces();
-        clearAndRedrawBoard();
-        Constants.gameStarted = true;
-        sldSize.setDisable(true);
-        btnMode.setDisable(true);
-        btnSave.setDisable(false);
-        btnLoad.setDisable(true);
-        lblTxt.setText("Black Move");
-        btnStart.setText("End");
-        color = -1;
-
-        AiMove tempAiBlack = new AI_Guardian(-1, pieces);
-        AiMove tempAiWhite = new AI_Guardian(1, pieces);
-
-        switch (Constants.getMode()) {
-            case PvAI: {
-                btnRetract.setDisable(false);
-
-                Random ran = new Random();
-                if (ran.nextInt(2) % 2 == 0) {
-                    ai1 = tempAiBlack;
-                    ai1Color = -1;
-                    playerBlack = ai1.toString();
-                    playerWhite = "Human";
-
-                    // When AI_Herald first(white), switch Human's color and let AI_Herald make one move first
-                    switchColor();
-
-                    letAiMove(ai1);
+                GameState checkRusult = Referee.checkIfGameEnds(tempBoard, aiMove);
+                if (checkRusult != NOT_END) {
+                  fixedThreadPool.execute(() ->
+                          tempAi1.gameEnds(checkRusult));
+                  fixedThreadPool.execute(() ->
+                          tempAi2.gameEnds(checkRusult));
+                  System.out.println(checkRusult);
+                  return;
                 }
-                else {
-                    ai1 = tempAiWhite;
-                    ai1Color = 1;
-                    playerBlack = "Human";
-                    playerWhite = ai1.toString();
-                }
-                break;
-            }
-            case PvP: {
-                btnRetract.setDisable(false);
-                playerBlack = "Human";
-                playerWhite = "Human";
-                break;
-            }
-            case AIvAI: {
-                if (Constants.isAIvAISilently) {
-                    btnSave.setDisable(true);
-                    lblTxt.setText("AIvAI in background silently...");
 
-                    for (int i = 0; i < Constants.threadPoolLimit; i++) {
-                        Pieces tempPieces = new Pieces();
-                        int tempAi1Color = -1;
-                        int tempAi2Color = 1;
-                        AiMove tempAi1 = new AI_Guardian(tempAi1Color, tempPieces);
-                        AiMove tempAi2 = new AI_Guardian(tempAi2Color, tempPieces);
-                        endThread = false;
-                        fixedThreadPool.execute(() -> {
-                            int tempColor = -1;
-                            while (!endThread) {
-                                AiMove ai;
-                                if (tempAi1.getColor() == tempColor) {
-                                    ai = tempAi1;
-                                }
-                                else {
-                                    ai = tempAi2;
-                                }
-
-                                PieceInfo aiMove = null;
-                                boolean isMoveValid = false;
-                                int attempt = 0;
-                                while (!isMoveValid && !endThread) {
-                                    // too many failed attempts make failure indeed
-                                    if (attempt < Constants.maxAttempts) {
-                                        attempt++;
-                                    }
-                                    else {
-                                        System.out.println(-ai.getColor() * 2);
-                                        return;
-                                    }
-
-                                    try {
-                                        aiMove = ai.nextMove();
-                                    }
-                                    catch(Exception ex) {
-                                        ex.printStackTrace();
-                                        continue;
-                                    }
-
-                                    if (tempPieces.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == tempAi1 ? tempAi1Color : tempAi2Color)) {
-                                        isMoveValid = true;
-                                        tempPieces.setPieceValue(aiMove);
-                                        tempPieces.piecePushStack(aiMove);
-                                    }
-                                }
-
-                                int checkResult = Referee.checkWinningCondition(tempPieces, aiMove);
-                                if (checkResult != 0) {
-                                    fixedThreadPool.execute(() ->
-                                            tempAi1.gameEnd(checkResult));
-                                    fixedThreadPool.execute(() ->
-                                            tempAi2.gameEnd(checkResult));
-                                    System.out.println(checkResult);
-                                    return;
-                                }
-
-                                tempColor = -tempColor;
-                            }
+                tempColor = -tempColor;
+              }
 
 
-                        });
-                    }
-                }
-                else {
-                    Random ran = new Random();
-                    if (ran.nextInt(2) % 2 == 0) {
-                        ai1 = tempAiWhite;
-                        ai1Color = 1;
-                        playerWhite = ai1.toString();
+            });
+          }
+        } else {
+          Random ran = new Random();
+          if (ran.nextInt(2) % 2 == 0) {
+            ai1 = tempAiWhite;
+            ai1Color = 1;
+            playerWhite = ai1.getName();
 
-                        ai2 = tempAiBlack;
-                        ai2Color = -1;
-                        playerBlack = ai2.toString();
+            ai2 = tempAiBlack;
+            ai2Color = -1;
+            playerBlack = ai2.getName();
 
-                    }
-                    else {
-                        ai1 = tempAiBlack;
-                        ai1Color = -1;
-                        playerBlack = ai1.toString();
+          } else {
+            ai1 = tempAiBlack;
+            ai1Color = -1;
+            playerBlack = ai1.getName();
 
-                        ai2 = tempAiWhite;
-                        ai2Color = 1;
-                        playerWhite = ai2.toString();
-                    }
+            ai2 = tempAiWhite;
+            ai2Color = 1;
+            playerWhite = ai2.getName();
+          }
 
-                    thread = new Thread(() -> {
-                        while (Constants.gameStarted && !endThread) {
-                            AiMove ai;
-                            if (ai1.getColor() == color) {
-                                ai = ai1;
-                            }
-                            else {
-                                ai = ai2;
-                            }
+          thread = new Thread(() -> {
+            while (gameStarted && !endThread) {
+              AiMove ai;
+              if (ai1.getColor() == color) {
+                ai = ai1;
+              } else {
+                ai = ai2;
+              }
 
-                            letAiMoveInOtherThread(ai);
+              letAiMoveInOtherThread(ai);
 
-                            if (Constants.gameStarted && !endThread) {
-                                runAndWait(() ->
-                                        switchColor());
-                            }
+              if (gameStarted && !endThread) {
+                Utils.runAndWait(() ->
+                        switchColor());
+              }
 //                        try {
-//                            Thread.sleep(Constants.aiThreadCycle);
+//                            Thread.sleep(Configuration.aiThreadCycle);
 //                        }
 //                        catch (InterruptedException ie) {
 //                            ie.printStackTrace();
 //                            Platform.runLater(() ->
 //                                    lblTxt.setText("Something went wrong with AI thread."));
 //                        }
-                        }
-                    });
-                    endThread = false;
-                    thread.start();
-                }
             }
-            default: {
-                break;
-            }
+          });
+          endThread = false;
+          thread.start();
         }
+      }
+      default: {
+        break;
+      }
+    }
+  }
+
+  private void btnEndFunc(boolean clearPieces) {
+    terminateThread();
+
+    if (clearPieces) {
+      board.clearPieces();
+      boardUI.clearPieces();
+      lblTxt.setText("");
+      btnSave.setDisable(true);
+      btnRetract.setDisable(true);
+      ai1 = null;
+      ai2 = null;
+      ai1Color = 0;
+      ai2Color = 0;
     }
 
-    private void btnEndFunc(boolean clearPieces) {
-        terminateThread();
+    this.color = -1;
+    gameStarted = false;
+    sldSize.setDisable(false);
+    btnMode.setDisable(false);
+    btnLoad.setDisable(false);
+    btnStart.setText("Start");
+  }
 
-        if (clearPieces) {
-            pieces.clearPieces();
-            clearBoard();
-            lblTxt.setText("");
-            btnSave.setDisable(true);
-            btnRetract.setDisable(true);
-            ai1 = null;
-            ai2 = null;
-            ai1Color = 0;
-            ai2Color = 0;
+  private void btnModeFunc() {
+    switch (mode) {
+      case PvAI: {
+        Utils.setMode(Configuration.Mode.PvP);
+        btnMode.setText("PvP");
+        break;
+      }
+      case PvP: {
+        Utils.setMode(Configuration.Mode.AIvAI);
+        btnMode.setText("AIvAI");
+        break;
+      }
+      case AIvAI: {
+        Utils.setMode(PvAI);
+        btnMode.setText("PvAI");
+        break;
+      }
+      default: {
+        break;
+      }
+    }
+  }
+
+  private void btnSaveFunc() { //TODO use serialization
+    StringBuilder sb = new StringBuilder();
+    if (!gameStarted) {
+      Piece tempPi = board.getWinningPiece(1);
+      if (tempPi != null) {
+        if (tempPi.getColor() == -1) {
+          sb.insert(0, "// Black wins\n\n");
+        } else {
+          sb.insert(0, "// White wins\n\n");
         }
-
-        this.color = -1;
-        Constants.gameStarted = false;
-        sldSize.setDisable(false);
-        btnMode.setDisable(false);
-        btnLoad.setDisable(false);
-        btnStart.setText("Start");
+      }
     }
 
-    private void btnModeFunc() {
-        switch(Constants.getMode()) {
-            case PvAI: {
-                Constants.setMode(Constants.Mode.PvP);
-                btnMode.setText("PvP");
-                break;
-            }
-            case PvP: {
-                Constants.setMode(Constants.Mode.AIvAI);
-                btnMode.setText("AIvAI");
-                break;
-            }
-            case AIvAI: {
-                Constants.setMode(Constants.Mode.PvAI);
-                btnMode.setText("PvAI");
-                break;
-            }
-            default: {
-                break;
-            }
-        }
+    sb.append(order).append("\n").append("(Black) ").append(playerBlack).append("\n").append("(White) ").append(playerWhite).append("\n");
+
+    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String date = df.format(new Date());
+    sb.insert(0, "// " + date + "\n");
+
+    board.getReplayData(sb);
+
+    try {
+      File folder = new File("./replay/");
+      folder.mkdirs();
+
+      OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream("./replay/" + date.replaceAll(":", "_") + ".txt"), "utf-8");
+      writer.write(sb.toString());
+      writer.close();
+      lblTxt.setText("Replay saved!\nNamed with time.");
+    } catch (Exception ex) {
+      lblTxt.setText("Unknown error. Failed to save.");
+      ex.printStackTrace();
     }
+  }
 
-    private void btnSaveFunc() {
-        // used for saving replay
-        StringBuilder sb = new StringBuilder();
-        if (!Constants.gameStarted) {
-            PieceInfo tempPi = pieces.getWinningPieceInfo(1);
-            if (tempPi != null) {
-                if (tempPi.getColor() == -1) {
-                    sb.insert(0, "// Black wins\n\n");
-                }
-                else {
-                    sb.insert(0, "// White wins\n\n");
-                }
-            }
-        }
+  /**
+   * Comments that start with '//' and Blank line in replay files are supported which should not change the order of raw content.
+   */
+  private void btnLoadFunc() {
+    //TODO may add a feature "load and play" and if so, must execute pushPieceStack
 
-        sb.append(Constants.getOrder()).append("\n").append("(Black) ").append(playerBlack).append("\n").append("(White) ").append(playerWhite).append("\n");
+    FileChooser fc = new FileChooser();
+    //fc.setInitialDirectory(new File(System.getProperty("user.dir")));
+    fc.setTitle("Load Replay");
+    fc.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
+    File selectedFile = fc.showOpenDialog(null);
+    if (selectedFile != null) {
+      //Configuration.gameStarted = true;
+      board.clearPieces();
+      btnStart.setDisable(true);
+      btnMode.setDisable(true);
+      sldSize.setDisable(true);
+      btnLoad.setText("Stop");
+      btnRetract.setDisable(true);
 
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        String date = df.format(new Date());
-        sb.insert(0, "// " + date + "\n");
-
-        pieces.getReplayData(sb);
-
+      thread = new Thread(() -> {
+        BufferedReader reader = null;
         try {
-            File folder = new File("./replay/");
-            folder.mkdirs();
+          reader = new BufferedReader(new FileReader(selectedFile));
+          String tempStr = null;
+          int line = 1;
+          for (; (tempStr = reader.readLine()) != null && !endThread; ) {
+            if (tempStr.startsWith("//") || tempStr.equals("")) {
+              continue;
+            }
 
-            OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream("./replay/" + date.replaceAll(":", "_") + ".txt"), "utf-8");
-            writer.write(sb.toString());
-            writer.close();
-            lblTxt.setText("Replay saved!\nNamed with time.");
+            switch (line) {
+              case 1: {
+                final int replayOrder = Integer.parseInt(tempStr);
+                Utils.setOrder(replayOrder);
+
+                Platform.runLater(() -> {
+                  boardUI.clearAndRedrawBoard();
+                  sldSize.setValue(replayOrder);
+                  lblSize.setText("Size: " + replayOrder);
+                  if (Configuration.isManualLoad) {
+                    lblTxt.setText("Click to replay step by step.");
+                  }
+                });
+                break;
+              }
+              case 2: {
+                final String txt1 = tempStr;
+                Platform.runLater(() ->
+                        lblTxt.setText(txt1));
+                break;
+              }
+              case 3: {
+                final String txt2 = tempStr;
+                Platform.runLater(() ->
+                        lblTxt.setText(lblTxt.getText() + "\n\n" + txt2));
+                break;
+              }
+              default: {
+                String[] arr = tempStr.split(" ");
+
+                final int tempColor;
+                if (line % 2 == 0) {
+                  tempColor = -1;
+                } else {
+                  tempColor = 1;
+                }
+
+                final Piece tempPi = new Piece(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor);
+                if (board.setPieceValue(tempPi)) {
+
+                  Platform.runLater(() -> {
+                    boardUI.drawPiece(tempPi, true);
+                    GameState checkResult = Referee.checkIfGameEnds(board, tempPi);
+                    if (checkResult != NOT_END) {
+                      playWinningAnimation(checkResult);
+                    }
+                  });
+                } else {
+                  Platform.runLater(() ->
+                          lblTxt.setText("Replay has been damaged."));
+                  endThread = true;
+                }
+                break;
+              }
+            }
+
+            line++;
+
+            if (Configuration.isManualLoad) {
+              while (!clicked) {
+                Thread.sleep(100);
+              }
+              clicked = false;
+            } else {
+              Thread.sleep(Configuration.loadThreadCycle);
+            }
+          }
+          reader.close();
+        } catch (Exception ex1) {
+          ex1.printStackTrace();
+          Platform.runLater(() ->
+                  lblTxt.setText("Something goes wrong with the file. \nFailed to load replay."));
+        } finally {
+          if (reader != null) {
+            try {
+              reader.close();
+            } catch (IOException ex2) {
+              ex2.printStackTrace();
+            }
+          }
         }
-        catch (Exception ex) {
-            lblTxt.setText("Unknown error. Failed to save.");
-            ex.printStackTrace();
-        }
+
+        Platform.runLater(() ->
+                lblTxt.setText(lblTxt.getText() + "\n\nReplay finished."));
+        btnStart.setDisable(false);
+        btnMode.setDisable(false);
+        sldSize.setDisable(false);
+        Platform.runLater(() ->
+                btnLoad.setText("Load"));
+      });
+      endThread = false;
+      thread.start();
+
+    } else {
+      lblTxt.setText("Something goes wrong with the file. \nFailed to load replay.");
+    }
+  }
+
+  private void btnRetractFunc() {
+    if (thread != null && thread.getState() != Thread.State.TERMINATED) {
+      lblTxt.setText("No response.\nTry retract later.");
+      return;
     }
 
-    /**
-     * Comments that start with '//' and Blank line in replay files are supported which should not change the order of raw content.
-     */
-    private void btnLoadFunc() {
-        //TODO may add a feature "load and play" and if so, must execute piecePushStack
+    Piece redrawPi;
+    try {
+      redrawPi = board.retract();
+    } catch (Exception ex) {
+      lblTxt.setText(ex.getMessage());
+      return;
+    }
 
-        FileChooser fc = new FileChooser();
-        //fc.setInitialDirectory(new File(System.getProperty("user.dir")));
-        fc.setTitle("Load Replay");
-        fc.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Text Files", "*.txt"));
-        File selectedFile = fc.showOpenDialog(null);
-        if (selectedFile != null) {
-            //Constants.gameStarted = true;
-            pieces.clearPieces();
-            btnStart.setDisable(true);
-            btnMode.setDisable(true);
-            sldSize.setDisable(true);
-            btnLoad.setText("Stop");
-            btnRetract.setDisable(true);
+    if (redrawPi != null) {
+      switch (mode) {
+        case PvAI: {
+          color = -redrawPi.getColor();
+          if (color == -1) {
+            lblTxt.setText("Black Move");
+          } else {
+            lblTxt.setText("White Move");
+          }
+          break;
+        }
+        case PvP: {
+          color = -redrawPi.getColor();
+          if (color == -1) {
+            lblTxt.setText("Black Move");
+          } else {
+            lblTxt.setText("White Move");
+          }
+          break;
+        }
+        default: {
+          lblTxt.setText("Caught a bug in btnRetractFunc.");
+          break;
+        }
+      }
 
+      boardUI.redDot.relocate(Utils.calcPieceCoordinate(redrawPi.getX()) - boardUI.redDot.getRadius(), Utils.calcPieceCoordinate(redrawPi.getY()) - boardUI.redDot.getRadius());
+      boardUI.redDot.toFront();
+
+      gameStarted = true;
+      sldSize.setDisable(true);
+      btnMode.setDisable(true);
+      btnLoad.setDisable(true);
+      btnStart.setText("End");
+    } else {
+      switch (mode) {
+        case PvAI: {
+          color = -1;
+          break;
+        }
+        case PvP: {
+          color = -1;
+          lblTxt.setText("Black Move");
+          break;
+        }
+        default: {
+          lblTxt.setText("Caught a bug in btnRetractFunc.");
+          break;
+        }
+      }
+
+      boardUI.clearPieces();
+      gameStarted = true;
+      sldSize.setDisable(true);
+      btnMode.setDisable(true);
+      btnLoad.setDisable(true);
+      btnStart.setText("End");
+    }
+  }
+
+  private void letAiMove(AiMove ai) {
+    lblTxt.setText(ai.getName() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving");
+
+    Piece aiMove = null;
+    boolean isMoveValid = false;
+    int attempt = 0;
+    while (!isMoveValid) {
+      // too many failed attempts make failure indeed
+      if (attempt < Configuration.maxAttempts) {
+        attempt++;
+      } else {
+        if (ai.getColor() == 1) {
+          finishGame(WHITE_GIVE_UP);
+        } else {
+          finishGame(BLACK_GIVE_UP);
+        }
+
+        return;
+      }
+
+      try {
+        aiMove = ai.nextMove();
+      } catch (Exception ex) {
+        ex.printStackTrace();
+        continue;
+      }
+
+      if (board.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+        isMoveValid = true;
+        board.setPieceValue(aiMove);
+        board.pushPieceStack(aiMove);
+        boardUI.drawPiece(aiMove, true);
+      }
+    }
+
+    lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move");
+    GameState checkResult = Referee.checkIfGameEnds(board, aiMove);
+    if (checkResult != NOT_END) {
+      finishGame(checkResult);
+    }
+  }
+
+  //TODO try to combine the two function (in current thread & in other thread)
+  private void letAiMoveInOtherThread(AiMove ai) {
+    Utils.runAndWait(() ->
+            lblTxt.setText(ai.getName() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving"));
+
+    Piece aiMove = null;
+    boolean isMoveValid = false;
+    int attempt = 0;
+    while (!isMoveValid && !endThread) {
+      // too many failed attempts make failure indeed
+      if (attempt < Configuration.maxAttempts) {
+        attempt++;
+      } else {
+        final GameState ending;
+        if (ai.getColor() == 1) {
+          ending = WHITE_GIVE_UP;
+        } else {
+          ending = BLACK_GIVE_UP;
+        }
+
+        Utils.runAndWait(() ->
+                finishGame(ending));
+        return;
+      }
+
+      try {
+        aiMove = ai.nextMove();
+      } catch (Exception ex) {
+        ex.printStackTrace();
+        continue;
+      }
+
+      if (board.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+        isMoveValid = true;
+        board.setPieceValue(aiMove);
+        board.pushPieceStack(aiMove);
+
+        final Piece _aiMove = Piece.createPieceByAI(aiMove.getX(), aiMove.getY(), aiMove.getColor());
+        if (!endThread) {
+          Utils.runAndWait(() ->
+                  boardUI.drawPiece(_aiMove, true));
+        }
+      }
+    }
+
+    Utils.runAndWait(() ->
+            lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move"));
+
+    GameState checkResult = Referee.checkIfGameEnds(board, aiMove);
+    if (checkResult != NOT_END) {
+      Utils.runAndWait(() ->
+              finishGame(checkResult));
+    }
+  }
+
+  private void letHumanMove(boolean nextIsAi, MouseEvent me) {
+    if (Utils.checkMouseClick(me.getX(), me.getY())) {
+      int seqX = Utils.calcPieceSeq(me.getX());
+      int seqY = Utils.calcPieceSeq(me.getY());
+      Piece tempPi = new Piece(seqX, seqY, color);
+      if (board.setPieceValue(tempPi)) {
+        board.pushPieceStack(tempPi);
+        boardUI.drawPiece(tempPi, true);
+
+        GameState checkResult = Referee.checkIfGameEnds(board, tempPi);
+        if (checkResult != NOT_END) {
+          finishGame(checkResult);
+        } else {
+          if (nextIsAi) {
+            // TODO use singleThreadExecutor to improve performance
             thread = new Thread(() -> {
-                BufferedReader reader = null;
-                try {
-                    reader = new BufferedReader(new FileReader(selectedFile));
-                    String tempStr = null;
-                    int line = 1;
-                    for ( ;(tempStr = reader.readLine()) != null && !endThread; ) {
-                        if (tempStr.startsWith("//") || tempStr.equals("")) {
-                            continue;
-                        }
+              if (gameStarted && !endThread) {
+                AiMove ai = ai1;
 
-                        switch (line) {
-                            case 1: {
-                                final int replayOrder = Integer.parseInt(tempStr);
-                                Constants.setOrder(replayOrder);
-
-                                Platform.runLater(() -> {
-                                    clearAndRedrawBoard();
-                                    sldSize.setValue(replayOrder);
-                                    lblSize.setText("Size: " + replayOrder);
-                                    if (Constants.isManualLoad) {
-                                        lblTxt.setText("Click to replay step by step.");
-                                    }
-                                });
-                                break;
-                            }
-                            case 2: {
-                                final String txt1 = tempStr;
-                                Platform.runLater(() ->
-                                        lblTxt.setText(txt1));
-                                break;
-                            }
-                            case 3: {
-                                final String txt2 = tempStr;
-                                Platform.runLater(() ->
-                                        lblTxt.setText(lblTxt.getText() + "\n\n" + txt2));
-                                break;
-                            }
-                            default: {
-                                String[] arr = tempStr.split(" ");
-
-                                final int tempColor;
-                                if (line % 2 == 0) {
-                                    tempColor = -1;
-                                }
-                                else {
-                                    tempColor = 1;
-                                }
-
-                                final PieceInfo tempPi = new PieceInfo(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor);
-                                if (pieces.setPieceValue(tempPi)) {
-
-                                    Platform.runLater(() -> {
-                                        drawPiece(tempPi, true);
-                                        int checkResult = Referee.checkWinningCondition(pieces, tempPi);
-                                        if (checkResult != 0) {
-                                            playWinningAnimation(checkResult);
-                                        }
-                                    });
-                                }
-                                else {
-                                    Platform.runLater(() ->
-                                            lblTxt.setText("Replay has been damaged."));
-                                    endThread = true;
-                                }
-                                break;
-                            }
-                        }
-
-                        line++;
-
-                        if (Constants.isManualLoad) {
-                            while (!clicked) {
-                                Thread.sleep(100);
-                            }
-                            clicked = false;
-                        }
-                        else {
-                            Thread.sleep(Constants.loadThreadCycle);
-                        }
-                    }
-                    reader.close();
-                }
-                catch (Exception ex1) {
-                    ex1.printStackTrace();
-                    Platform.runLater(() ->
-                            lblTxt.setText("Something goes wrong with the file. \nFailed to load replay."));
-                }
-                finally {
-                    if (reader != null) {
-                        try {
-                            reader.close();
-                        }
-                        catch (IOException ex2) {
-                            ex2.printStackTrace();
-                        }
-                    }
-                }
-
-                Platform.runLater(() ->
-                        lblTxt.setText(lblTxt.getText() + "\n\nReplay finished."));
-                btnStart.setDisable(false);
-                btnMode.setDisable(false);
-                sldSize.setDisable(false);
-                Platform.runLater(() ->
-                        btnLoad.setText("Load"));
+                letAiMoveInOtherThread(ai);
+              }
             });
             endThread = false;
             thread.start();
+          } else {
+            switchColor();
+          }
+        }
+      }
+    } else {
+      // do nothing
+    }
+  }
 
-        }
-        else {
-            lblTxt.setText("Something goes wrong with the file. \nFailed to load replay.");
-        }
+  private void switchColor() {
+    if (!gameStarted) {
+      return;
     }
 
-    private void btnRetractFunc() {
-        if (thread != null && thread.getState() != Thread.State.TERMINATED) {
-            lblTxt.setText("No response.\nTry retract later.");
-            return;
-        }
+    this.color = -this.color;
 
-        PieceInfo redrawPi;
-        try {
-            redrawPi = pieces.retract();
-        }
-        catch (Exception ex) {
-            lblTxt.setText(ex.getMessage());
-            return;
-        }
-
-        if (redrawPi != null) {
-            switch (Constants.getMode()) {
-                case PvAI: {
-                    color = -redrawPi.getColor();
-                    if (color == -1) {
-                        lblTxt.setText("Black Move");
-                    }
-                    else {
-                        lblTxt.setText("White Move");
-                    }
-                    break;
-                }
-                case PvP: {
-                    color = -redrawPi.getColor();
-                    if (color == -1) {
-                        lblTxt.setText("Black Move");
-                    }
-                    else {
-                        lblTxt.setText("White Move");
-                    }
-                    break;
-                }
-                default: {
-                    lblTxt.setText("Caught a bug in btnRetractFunc.");
-                    break;
-                }
-            }
-
-            board.redDot.relocate(calcPieceCoordinate(redrawPi.getX()) - board.redDot.getRadius(), calcPieceCoordinate(redrawPi.getY()) - board.redDot.getRadius());
-            board.redDot.toFront();
-
-            Constants.gameStarted = true;
-            sldSize.setDisable(true);
-            btnMode.setDisable(true);
-            btnLoad.setDisable(true);
-            btnStart.setText("End");
-        }
-        else {
-            switch (Constants.getMode()) {
-                case PvAI: {
-                    color = -1;
-                    break;
-                }
-                case PvP: {
-                    color = -1;
-                    lblTxt.setText("Black Move");
-                    break;
-                }
-                default: {
-                    lblTxt.setText("Caught a bug in btnRetractFunc.");
-                    break;
-                }
-            }
-
-            clearBoard();
-            Constants.gameStarted = true;
-            sldSize.setDisable(true);
-            btnMode.setDisable(true);
-            btnLoad.setDisable(true);
-            btnStart.setText("End");
-        }
+    if (this.color == 1) {
+      lblTxt.setText("White Move");
+    } else {
+      lblTxt.setText("Black Move");
     }
+  }
 
-    public static void runAndWait(Runnable action) {
-        if (action == null)
-            throw new NullPointerException("action");
+  // TODO add a game mode without GUI for AI to train themselves
 
-        // run synchronously on JavaFX thread
-        if (Platform.isFxApplicationThread()) {
-            action.run();
-            return;
-        }
-
-        // queue on JavaFX thread and wait for completion
-        final CountDownLatch doneLatch = new CountDownLatch(1);
-        Platform.runLater(() -> {
-            try {
-                action.run();
-            } finally {
-                doneLatch.countDown();
-            }
-        });
-
-        try {
-            doneLatch.await();
-        } catch (InterruptedException e) {
-            // ignore exception
-        }
-    }
-
-    private static boolean checkMouseClick(double meX, double meY) {
-        // A valid click should both satisfy (x, y coordinate close to gridPoint) and (the gridPoint has no piece on it)
-
-        boolean validX = false;
-        boolean validY = false;
-        int x = (int)(meX + 0.5);
-        int y = (int)(meY + 0.5);
-
-        if ((x - Constants.getBorder()) % Constants.increment < Constants.increment / 3 || (x - Constants.getBorder()) % Constants.increment > Constants.increment * 2 / 3) {
-            validX = true;
-        }
-        if ((y - Constants.getBorder()) % Constants.increment < Constants.increment / 3 || (y - Constants.getBorder()) % Constants.increment > Constants.increment * 2 / 3) {
-            validY = true;
-        }
-
-        return validX && validY;
-    }
-
-    private static int calcPieceSeq(double meC) { // x or y coordinate -> sequence number in Pieces.p[][]
-        int c = (int)(meC + 0.5);
-        if ((c - Constants.getBorder()) % Constants.increment < Constants.increment / 3) {
-            return (c - Constants.getBorder()) / Constants.increment;
-        }
-        else {
-            return ((c - Constants.getBorder()) / Constants.increment) + 1;
-        }
-    }
-
-    private static double calcPieceCoordinate(int seq) {
-        return (double)(seq * Constants.increment + Constants.getBorder());
-    }
-
-    private void letAiMove(AiMove ai) {
-        lblTxt.setText(ai.toString() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving");
-
-        PieceInfo aiMove = null;
-        boolean isMoveValid = false;
-        int attempt = 0;
-        while (!isMoveValid) {
-            // too many failed attempts make failure indeed
-            if (attempt < Constants.maxAttempts) {
-                attempt++;
-            }
-            else {
-                finishGame(-ai.getColor() * 2);
-                return;
-            }
-
-            try {
-                aiMove = ai.nextMove();
-            }
-            catch(Exception ex) {
-                ex.printStackTrace();
-                continue;
-            }
-
-            if (pieces.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
-                isMoveValid = true;
-                pieces.setPieceValue(aiMove);
-                pieces.piecePushStack(aiMove);
-                drawPiece(aiMove, true);
-            }
-        }
-
-        lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move");
-        int checkResult = Referee.checkWinningCondition(pieces, aiMove);
-        if (checkResult != 0) {
-            finishGame(checkResult);
-        }
-    }
-
-    private void letAiMoveInOtherThread(AiMove ai) {
-        runAndWait(() ->
-                lblTxt.setText(ai.toString() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving"));
-
-        PieceInfo aiMove = null;
-        boolean isMoveValid = false;
-        int attempt = 0;
-        while (!isMoveValid && !endThread) {
-            // too many failed attempts make failure indeed
-            if (attempt < Constants.maxAttempts) {
-                attempt++;
-            }
-            else {
-                runAndWait(() ->
-                        finishGame(-ai.getColor() * 2));
-                return;
-            }
-
-            try {
-                aiMove = ai.nextMove();
-            }
-            catch(Exception ex) {
-                ex.printStackTrace();
-                continue;
-            }
-
-            if (pieces.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
-                isMoveValid = true;
-                pieces.setPieceValue(aiMove);
-                pieces.piecePushStack(aiMove);
-
-                final PieceInfo _aiMove = new PieceInfo(aiMove.getX(), aiMove.getY(), aiMove.getColor(), true);
-                if (!endThread) {
-                    runAndWait(() ->
-                            drawPiece(_aiMove, true));
-                }
-            }
-        }
-
-        runAndWait(() ->
-                lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move"));
-
-        int checkResult = Referee.checkWinningCondition(pieces, aiMove);
-        if (checkResult != 0) {
-            runAndWait(() ->
-                    finishGame(checkResult));
-        }
-    }
-
-    private void letHumanMove(boolean nextIsAi, MouseEvent me) {
-        if (checkMouseClick(me.getX(), me.getY())) {
-            int seqX = calcPieceSeq(me.getX());
-            int seqY = calcPieceSeq(me.getY());
-            PieceInfo tempPi = new PieceInfo(seqX, seqY, color, false);
-            if (pieces.setPieceValue(tempPi)) {
-                pieces.piecePushStack(tempPi);
-                        drawPiece(tempPi, true);
-
-                int checkResult = Referee.checkWinningCondition(pieces, tempPi);
-                if (checkResult != 0) {
-                    finishGame(checkResult);
-                }
-                else {
-                    if (nextIsAi) {
-                        // TODO use singleThreadExecutor to improve performance
-                        thread = new Thread(() -> {
-                            if (Constants.gameStarted && !endThread) {
-                                AiMove ai = ai1;
-
-                                letAiMoveInOtherThread(ai);
-                            }
-                        });
-                        endThread = false;
-                        thread.start();
-                    }
-                    else{
-                        switchColor();
-                    }
-                }
-            }
-        }
-        else {
-            // do nothing
-        }
-    }
-
-    private void switchColor() {
-        if (!Constants.gameStarted) {
-            return;
-        }
-
-        this.color = -this.color;
-
-        if (this.color == 1) {
-            lblTxt.setText("White Move");
-        }
-        else {
-            lblTxt.setText("Black Move");
-        }
-    }
 }
-
-// TODO add a game mode without GUI for AI to train themselves

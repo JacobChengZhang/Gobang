@@ -3,3 +3,5 @@
 /.idea/
 /doc/
 /replay/
+.DS_Store
+/src/main/java/META-INF/MANIFEST.MF

@@ -1,13 +1,20 @@
 package Gomoku;
 
+import Gomoku.Referee.GameState;
+
 public interface AiMove {
-    PieceInfo nextMove(); // get the next move of AI_Herald (validity of this move should be check again)
 
-    int getColor();
+  Piece nextMove(); // get the next move of AI_Herald (validity of this move should be check again)
 
-    /**
-     * called when game ends with a result(not ended by player)
-     * @param result
-     */
-    void gameEnd(int result);
+  String getName();
+
+  int getColor(); //TODO can be removed?
+
+  /**
+   * called when game ends with a result(not ended by player)
+   *
+   * @param ending
+   */
+  void gameEnds(GameState ending);
+
 }

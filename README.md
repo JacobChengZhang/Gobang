@@ -4,9 +4,7 @@
 
 ![](https://img.shields.io/travis/JacobChengZhang/Gomoku.svg) ![](https://img.shields.io/github/languages/top/JacobChengZhang/Gomoku.svg) ![](https://img.shields.io/github/license/JacobChengZhang/Gomoku.svg)
 
-Gomoku implemented by Java using JavaFX.
-
-Ban rules haven't been supported for this moment.
+Gomoku implemented in Java using JavaFX.
 
 
 
