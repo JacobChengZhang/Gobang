@@ -90,8 +90,8 @@ public class Gomoku extends Application {
   private int color = -1;
 
   // names of players
-  String playerWhite = null;
-  String playerBlack = null;
+  private String playerWhite = null;
+  private String playerBlack = null;
 
 
   public static void main(String[] args) {
@@ -334,10 +334,14 @@ public class Gomoku extends Application {
       Class<?> clsB = Class.forName(Configuration.aiBlack);
       Class<?> clsW = Class.forName(Configuration.aiWhite);
       //TODO constructor of AI object may be modified (as interface?)
-      Constructor<?> consB = clsB.getConstructor(int.class, PieceQuery.class);
-      Constructor<?> consW = clsW.getConstructor(int.class, PieceQuery.class);
-      tempAiBlack = (AiMove)consB.newInstance(-1, board);
-      tempAiWhite = (AiMove)consW.newInstance(1, board);
+      Constructor<?> consB = clsB.getConstructor();
+      Constructor<?> consW = clsW.getConstructor();
+      tempAiBlack = (AiMove)consB.newInstance();
+      tempAiBlack.setColor(-1);
+      tempAiBlack.setPieceQuery(board);
+      tempAiWhite = (AiMove)consW.newInstance();
+      tempAiWhite.setColor(1);
+      tempAiWhite.setPieceQuery(board);
     } catch (Exception e) {
       e.printStackTrace();
       System.exit(1);
@@ -357,7 +361,7 @@ public class Gomoku extends Application {
           // When AI_Herald first(white), switch Human's color and let AI_Herald make one move first
           switchColor();
 
-          letAiMove(ai1);
+          letAiMove(ai1, ai1Color);
         } else {
           ai1 = tempAiWhite;
           ai1Color = 1;
@@ -381,17 +385,25 @@ public class Gomoku extends Application {
             Board tempBoard = new Board();
             int tempAi1Color = -1;
             int tempAi2Color = 1;
-            AiMove tempAi1 = new AI_Guardian(tempAi1Color, tempBoard);
-            AiMove tempAi2 = new AI_Guardian(tempAi2Color, tempBoard);
+            AiMove tempAi1 = new AI_Guardian();
+            tempAi1.setColor(tempAi1Color);
+            tempAi1.setPieceQuery(tempBoard);
+
+            AiMove tempAi2 = new AI_Guardian();
+            tempAi2.setColor(tempAi2Color);
+            tempAi2.setPieceQuery(tempBoard);
             endThread = false;
             fixedThreadPool.execute(() -> {
               int tempColor = -1;
               while (!endThread) {
                 AiMove ai;
-                if (tempAi1.getColor() == tempColor) {
+                int aiColor;
+                if (tempAi1Color == tempColor) {
                   ai = tempAi1;
+                  aiColor = tempAi1Color;
                 } else {
                   ai = tempAi2;
+                  aiColor = tempAi2Color;
                 }
 
                 Piece aiMove = null;
@@ -402,7 +414,7 @@ public class Gomoku extends Application {
                   if (attempt < Configuration.maxAttempts) {
                     attempt++;
                   } else {
-                    System.out.println(-ai.getColor() * 2);
+                    System.out.println((aiColor == -1 ? "Black" : "White") + " gives up!");
                     return;
                   }
 
@@ -413,7 +425,7 @@ public class Gomoku extends Application {
                     continue;
                   }
 
-                  if (tempBoard.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == tempAi1 ? tempAi1Color : tempAi2Color)) {
+                  if (tempBoard.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == aiColor) {
                     isMoveValid = true;
                     tempBoard.setPieceValue(aiMove);
                     tempBoard.pushPieceStack(aiMove);
@@ -460,13 +472,13 @@ public class Gomoku extends Application {
           thread = new Thread(() -> {
             while (gameStarted && !endThread) {
               AiMove ai;
-              if (ai1.getColor() == color) {
-                ai = ai1;
+              if (color == ai1Color) {
+                letAiMoveInOtherThread(ai1, ai1Color);
               } else {
-                ai = ai2;
+                letAiMoveInOtherThread(ai2, ai2Color);
               }
 
-              letAiMoveInOtherThread(ai);
+
 
               if (gameStarted && !endThread) {
                 Utils.runAndWait(() ->
@@ -776,8 +788,8 @@ public class Gomoku extends Application {
     }
   }
 
-  private void letAiMove(AiMove ai) {
-    lblTxt.setText(ai.getName() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving");
+  private void letAiMove(AiMove ai, int aiColor) {
+    lblTxt.setText(ai.getName() + " (" + (aiColor == 1 ? "White" : "Black") + ") is moving");
 
     Piece aiMove = null;
     boolean isMoveValid = false;
@@ -787,7 +799,7 @@ public class Gomoku extends Application {
       if (attempt < Configuration.maxAttempts) {
         attempt++;
       } else {
-        if (ai.getColor() == 1) {
+        if (aiColor == 1) {
           finishGame(WHITE_GIVE_UP);
         } else {
           finishGame(BLACK_GIVE_UP);
@@ -803,7 +815,7 @@ public class Gomoku extends Application {
         continue;
       }
 
-      if (board.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+      if (board.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == aiColor) {
         isMoveValid = true;
         board.setPieceValue(aiMove);
         board.pushPieceStack(aiMove);
@@ -811,7 +823,7 @@ public class Gomoku extends Application {
       }
     }
 
-    lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move");
+    lblTxt.setText((aiColor == 1 ? "Black" : "White") + " Move");
     GameState checkResult = Referee.checkIfGameEnds(board, aiMove);
     if (checkResult != NOT_END) {
       finishGame(checkResult);
@@ -819,9 +831,9 @@ public class Gomoku extends Application {
   }
 
   //TODO try to combine the two function (in current thread & in other thread)
-  private void letAiMoveInOtherThread(AiMove ai) {
+  private void letAiMoveInOtherThread(AiMove ai, int aiColor) {
     Utils.runAndWait(() ->
-            lblTxt.setText(ai.getName() + " (" + (ai.getColor() == 1 ? "White" : "Black") + ") is moving"));
+            lblTxt.setText(ai.getName() + " (" + (aiColor == 1 ? "White" : "Black") + ") is moving"));
 
     Piece aiMove = null;
     boolean isMoveValid = false;
@@ -832,7 +844,7 @@ public class Gomoku extends Application {
         attempt++;
       } else {
         final GameState ending;
-        if (ai.getColor() == 1) {
+        if (aiColor == 1) {
           ending = WHITE_GIVE_UP;
         } else {
           ending = BLACK_GIVE_UP;
@@ -850,7 +862,7 @@ public class Gomoku extends Application {
         continue;
       }
 
-      if (board.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == (ai == ai1 ? ai1Color : ai2Color)) {
+      if (board.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == aiColor) {
         isMoveValid = true;
         board.setPieceValue(aiMove);
         board.pushPieceStack(aiMove);
@@ -864,7 +876,7 @@ public class Gomoku extends Application {
     }
 
     Utils.runAndWait(() ->
-            lblTxt.setText((ai.getColor() == 1 ? "Black" : "White") + " Move"));
+            lblTxt.setText((aiColor == 1 ? "Black" : "White") + " Move"));
 
     GameState checkResult = Referee.checkIfGameEnds(board, aiMove);
     if (checkResult != NOT_END) {
@@ -892,7 +904,7 @@ public class Gomoku extends Application {
               if (gameStarted && !endThread) {
                 AiMove ai = ai1;
 
-                letAiMoveInOtherThread(ai);
+                letAiMoveInOtherThread(ai, ai1Color);
               }
             });
             endThread = false;

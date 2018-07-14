@@ -10,7 +10,7 @@ import java.util.concurrent.Executors;
 // The AI_Herald naming follows Herald, Guardian, Crusader, Archon, Legend, Ancient, and Divine which are quoted from DotA2 Rank Medals.
 public class AI_Guardian implements AiMove {
   private final String name = "Daddy-From-Now-On";
-  private final int color;
+  private int color;
   private PieceQuery pieces;
   private final int[][] p; // analog pieces
   private final int order = Utils.getOrder();
@@ -32,9 +32,7 @@ public class AI_Guardian implements AiMove {
 
   private ExecutorService cachedThreadPool;
 
-  public AI_Guardian(int color, PieceQuery pieces) {
-    this.color = color;
-    this.pieces = pieces;
+  public AI_Guardian() {
     this.p = new int[order][order];
     this.cachedThreadPool = Executors.newCachedThreadPool();
   }
@@ -45,8 +43,13 @@ public class AI_Guardian implements AiMove {
   }
 
   @Override
-  public int getColor() {
-    return color;
+  public void setColor(int color) {
+    this.color = color;
+  }
+
+  @Override
+  public void setPieceQuery(PieceQuery pq) {
+    this.pieces = pq;
   }
 
   @Override

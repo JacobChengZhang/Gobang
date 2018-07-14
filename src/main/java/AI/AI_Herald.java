@@ -8,7 +8,7 @@ import java.util.ArrayList;
 // The AI_Herald naming follows Herald, Guardian, Crusader, Archon, Legend, Ancient, and Divine which are quoted from DotA2 Rank Medals.
 public class AI_Herald implements AiMove {
   private final String name = "Herald";
-  private final int color;
+  private int color;
   private PieceQuery pieces = null;
   private final int[][] p; // analog pieces
   private final int[][] pScore;
@@ -20,9 +20,7 @@ public class AI_Herald implements AiMove {
   private int szLowestY = 0;
   private int szHighestY = Utils.getOrder() - 1;
 
-  public AI_Herald(int color, PieceQuery pieces) {
-    this.color = color;
-    this.pieces = pieces;
+  public AI_Herald() {
     this.p = new int[Utils.getOrder()][Utils.getOrder()];
     this.pScore = new int[Utils.getOrder()][Utils.getOrder()];
   }
@@ -33,8 +31,13 @@ public class AI_Herald implements AiMove {
   }
 
   @Override
-  public int getColor() {
-    return color;
+  public void setColor(int color) {
+    this.color = color;
+  }
+
+  @Override
+  public void setPieceQuery(PieceQuery pq) {
+    this.pieces = pq;
   }
 
   @Override
