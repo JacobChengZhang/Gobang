@@ -23,7 +23,7 @@ public class Referee {
   private static boolean checkIfBlankExist(Board board) {
     for (int x = 0; x < Gomoku.order; x++) {
       for (int y = 0; y < Gomoku.order; y++) {
-        if (board.getPieceValue(x, y) == 0) {
+        if (board.getPieceColor(x, y) == 0) {
           return true;
         }
       }
@@ -40,11 +40,11 @@ public class Referee {
     int lowX = pX;
     int highX = pX;
 
-    while ((lowX >= 1) && (board.getPieceValue(lowX - 1, pY) == pC)) {
+    while ((lowX >= 1) && (board.getPieceColor(lowX - 1, pY) == pC)) {
       lowX--;
     }
 
-    while ((highX < Gomoku.order - 1) && (board.getPieceValue(highX + 1, pY) == pC)) {
+    while ((highX < Gomoku.order - 1) && (board.getPieceColor(highX + 1, pY) == pC)) {
       highX++;
     }
 
@@ -58,11 +58,11 @@ public class Referee {
     int lowY = pY;
     int highY = pY;
 
-    while ((lowY >= 1) && (board.getPieceValue(pX, lowY - 1) == pC)) {
+    while ((lowY >= 1) && (board.getPieceColor(pX, lowY - 1) == pC)) {
       lowY--;
     }
 
-    while ((highY < Gomoku.order - 1) && (board.getPieceValue(pX, highY + 1) == pC)) {
+    while ((highY < Gomoku.order - 1) && (board.getPieceColor(pX, highY + 1) == pC)) {
       highY++;
     }
     if (highY - lowY >= 4) {
@@ -86,12 +86,12 @@ public class Referee {
     int highX = pX;
     int highY = pY;
 
-    while ((lowX >= 1) && (lowY >= 1) && (board.getPieceValue(lowX - 1, lowY - 1) == pC)) {
+    while ((lowX >= 1) && (lowY >= 1) && (board.getPieceColor(lowX - 1, lowY - 1) == pC)) {
       lowX--;
       lowY--;
     }
 
-    while ((highX < Gomoku.order - 1) && (highY < Gomoku.order - 1) && (board.getPieceValue(highX + 1, highY + 1) == pC)) {
+    while ((highX < Gomoku.order - 1) && (highY < Gomoku.order - 1) && (board.getPieceColor(highX + 1, highY + 1) == pC)) {
       highX++;
       highY++;
     }
@@ -109,12 +109,12 @@ public class Referee {
     highX = pX;
     lowY = pY;
 
-    while ((lowX >= 1) && (highY < Gomoku.order - 1) && (board.getPieceValue(lowX - 1, highY + 1) == pC)) {
+    while ((lowX >= 1) && (highY < Gomoku.order - 1) && (board.getPieceColor(lowX - 1, highY + 1) == pC)) {
       lowX--;
       highY++;
     }
 
-    while ((highX < Gomoku.order - 1) && (lowY >= 1) && (board.getPieceValue(highX + 1, lowY - 1) == pC)) {
+    while ((highX < Gomoku.order - 1) && (lowY >= 1) && (board.getPieceColor(highX + 1, lowY - 1) == pC)) {
       highX++;
       lowY--;
     }

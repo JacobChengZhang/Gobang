@@ -30,15 +30,13 @@ class BoardUI {
   private Board board = null;
   private ObservableList<Node> paneBoardChildren = null;
 
-
   private BoardUI() {
-    order = Gomoku.order;
-    clearAll();
   }
 
   static BoardUI getInstance(Board board, ObservableList<Node> paneBoardChildren) {
     if (boardUI == null) {
       boardUI = new BoardUI();
+      boardUI.order = Gomoku.order;
       boardUI.board = board;
       boardUI.paneBoardChildren = paneBoardChildren;
     }

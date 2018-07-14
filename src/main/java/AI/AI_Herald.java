@@ -96,8 +96,8 @@ public class AI_Herald implements AiMove {
 
     for (int i = 0; i < Utils.getOrder(); i++) {
       for (int j = 0; j < Utils.getOrder(); j++) {
-        if (pieces.getPieceValue(i, j) != p[i][j]) {
-          p[i][j] = pieces.getPieceValue(i, j);
+        if (pieces.getPieceColor(i, j) != p[i][j]) {
+          p[i][j] = pieces.getPieceColor(i, j);
         }
       }
     }

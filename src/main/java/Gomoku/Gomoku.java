@@ -427,7 +427,7 @@ public class Gomoku extends Application {
 
                   if (tempBoard.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == aiColor) {
                     isMoveValid = true;
-                    tempBoard.setPieceValue(aiMove);
+                    tempBoard.setPieceColor(aiMove);
                     tempBoard.pushPieceStack(aiMove);
                   }
                 }
@@ -654,7 +654,7 @@ public class Gomoku extends Application {
                 }
 
                 final Piece tempPi = new Piece(Integer.parseInt(arr[0]), Integer.parseInt(arr[1]), tempColor);
-                if (board.setPieceValue(tempPi)) {
+                if (board.setPieceColor(tempPi)) {
 
                   Platform.runLater(() -> {
                     boardUI.drawPiece(tempPi, true);
@@ -817,7 +817,7 @@ public class Gomoku extends Application {
 
       if (board.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == aiColor) {
         isMoveValid = true;
-        board.setPieceValue(aiMove);
+        board.setPieceColor(aiMove);
         board.pushPieceStack(aiMove);
         boardUI.drawPiece(aiMove, true);
       }
@@ -864,7 +864,7 @@ public class Gomoku extends Application {
 
       if (board.checkPieceValidity(aiMove.getX(), aiMove.getY()) && aiMove.getColor() == aiColor) {
         isMoveValid = true;
-        board.setPieceValue(aiMove);
+        board.setPieceColor(aiMove);
         board.pushPieceStack(aiMove);
 
         final Piece _aiMove = Piece.createPieceByAI(aiMove.getX(), aiMove.getY(), aiMove.getColor());
@@ -890,7 +890,7 @@ public class Gomoku extends Application {
       int seqX = Utils.calcPieceSeq(me.getX());
       int seqY = Utils.calcPieceSeq(me.getY());
       Piece tempPi = new Piece(seqX, seqY, color);
-      if (board.setPieceValue(tempPi)) {
+      if (board.setPieceColor(tempPi)) {
         board.pushPieceStack(tempPi);
         boardUI.drawPiece(tempPi, true);
 

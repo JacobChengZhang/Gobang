@@ -25,11 +25,11 @@ public class Board implements PieceQuery {
   }
 
   @Override
-  public int getPieceValue(int x, int y) {
+  public int getPieceColor(int x, int y) {
     return pieces[x][y];
   }
 
-  boolean setPieceValue(Piece pi) {
+  boolean setPieceColor(Piece pi) {
     if (checkPieceValidity(pi.getX(), pi.getY())) {
       pieces[pi.getX()][pi.getY()] = pi.getColor();
       return true;

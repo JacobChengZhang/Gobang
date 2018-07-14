@@ -85,7 +85,7 @@ public class AI_Guardian implements AiMove {
 
     for (int i = 0; i < order; i++) {
       for (int j = 0; j < order; j++) {
-        p[i][j] = pieces.getPieceValue(i, j);
+        p[i][j] = pieces.getPieceColor(i, j);
       }
     }
   }
@@ -715,7 +715,6 @@ public class AI_Guardian implements AiMove {
       this.color = color;
     }
   }
-
 
   @Deprecated
   class Combo {
