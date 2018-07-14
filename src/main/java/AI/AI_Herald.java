@@ -5,6 +5,7 @@ import Gomoku.Referee.*;
 
 import java.util.ArrayList;
 
+
 // The AI_Herald naming follows Herald, Guardian, Crusader, Archon, Legend, Ancient, and Divine which are quoted from DotA2 Rank Medals.
 public class AI_Herald implements AiMove {
   private final String name = "Herald";
@@ -19,6 +20,7 @@ public class AI_Herald implements AiMove {
   private int szHighestX = Utils.getOrder() - 1;
   private int szLowestY = 0;
   private int szHighestY = Utils.getOrder() - 1;
+
 
   public AI_Herald() {
     this.p = new int[Utils.getOrder()][Utils.getOrder()];

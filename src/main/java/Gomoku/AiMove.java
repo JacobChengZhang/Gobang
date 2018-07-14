@@ -2,6 +2,7 @@ package Gomoku;
 
 import Gomoku.Referee.GameState;
 
+
 public interface AiMove {
 
   // setColor and setPieceQuery will be called instantly after aiMove was created

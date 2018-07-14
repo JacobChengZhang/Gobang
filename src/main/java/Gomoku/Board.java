@@ -15,6 +15,7 @@ public class Board implements PieceQuery {
   private Piece winningPiece1 = null;
   private Piece winningPiece2 = null;
 
+
   Board() {
     this.pieces = new int[Gomoku.order][Gomoku.order];
   }

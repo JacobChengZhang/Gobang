@@ -17,19 +17,12 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Line;
-import javafx.scene.text.Font;
-import javafx.scene.text.Text;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.*;
-import java.lang.reflect.Constructor;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -38,7 +31,6 @@ import static Gomoku.Configuration.Mode.*;
 import Gomoku.Referee.*;
 import static Gomoku.Referee.GameState.*;
 
-import AI.AI_Guardian;
 
 public class Gomoku extends Application {
 
@@ -76,7 +68,7 @@ public class Gomoku extends Application {
   private int ai1Color = 0;
   private int ai2Color = 0;
 
-  // used for asynchronous tasks like AIvAI silently
+  // used for asynchronous tasks like AI training
   private ExecutorService fixedThreadPool = Executors.newFixedThreadPool(Configuration.threadPoolLimit);
 
   // thread for AI trigger or Replay loading
@@ -108,11 +100,8 @@ public class Gomoku extends Application {
 
   private Parent startGame() {
     createPane();
-
     boardUI.clearAndRedrawBoard();
-
     addControlButton();
-
     return root;
   }
 
@@ -241,7 +230,7 @@ public class Gomoku extends Application {
         break;
       }
       case AIvAI: {
-        if (Configuration.isAIvAISilently) {
+        if (Configuration.aiTrainingMode) {
 
         } else {
           fixedThreadPool.execute(() ->
@@ -256,7 +245,7 @@ public class Gomoku extends Application {
       }
     }
 
-    playWinningAnimation(ending);
+    boardUI.playWinningAnimation(ending);
 
     switch (ending) {
       case WHITE_WIN: {
@@ -282,7 +271,7 @@ public class Gomoku extends Application {
       default: {
         lblTxt.setText("Caught a bug in Referee.");
         System.err.println("Caught a bug in Referee.");
-        //System.exit(1);
+        System.exit(1);
         break;
       }
     }
@@ -290,33 +279,8 @@ public class Gomoku extends Application {
     btnEndFunc(false);
   }
 
-  private void playWinningAnimation(GameState ending) {
-    //TODO turn static Text into really animation...
-    if (ending == DRAW) { // draw
-      Text txt = new Text(paneWidth / 3, paneBoardHeight / 2, "Draw!");
-      txt.setFill(Color.RED);
-      txt.setFont(new Font("Courier", 6 * Configuration.pieceRadius));
-      txt.setTextAlignment(TextAlignment.CENTER);
-      paneBoardChildren.add(txt);
-      boardUI.winAnimation = txt;
-    } else {
-      Piece pi1 = board.getWinningPiece(1);
-      Piece pi2 = board.getWinningPiece(2);
-      if (pi1 != null && pi2 != null) {
-        Line winningLine = new Line(Utils.calcPieceCoordinate(pi1.getX()), Utils.calcPieceCoordinate(pi1.getY()), Utils.calcPieceCoordinate(pi2.getX()), Utils.calcPieceCoordinate(pi2.getY()));
-        winningLine.setStroke(Color.RED);
-        winningLine.setStrokeWidth(Configuration.pieceRadius / 3);
-        paneBoardChildren.add(winningLine);
-        boardUI.winAnimation = winningLine;
-      } else {
-        //System.err.println("Caught a bug and failed to fetch winning Piece");
-        //System.exit(1);
-      }
-    }
-  }
-
+  // TODO refactor btnStartFunc and btnLoadFunc
   private void btnStartFunc() {
-    board.clearPieces();
     boardUI.clearAndRedrawBoard();
     gameStarted = true;
     sldSize.setDisable(true);
@@ -327,33 +291,15 @@ public class Gomoku extends Application {
     btnStart.setText("End");
     color = -1;
 
-    AiMove tempAiBlack = null;
-    AiMove tempAiWhite = null;
-
-    try {
-      Class<?> clsB = Class.forName(Configuration.aiBlack);
-      Class<?> clsW = Class.forName(Configuration.aiWhite);
-      //TODO constructor of AI object may be modified (as interface?)
-      Constructor<?> consB = clsB.getConstructor();
-      Constructor<?> consW = clsW.getConstructor();
-      tempAiBlack = (AiMove)consB.newInstance();
-      tempAiBlack.setColor(-1);
-      tempAiBlack.setPieceQuery(board);
-      tempAiWhite = (AiMove)consW.newInstance();
-      tempAiWhite.setColor(1);
-      tempAiWhite.setPieceQuery(board);
-    } catch (Exception e) {
-      e.printStackTrace();
-      System.exit(1);
-    }
+    AiMove aiBlack = Utils.createAI(true, board);
+    AiMove aiWhite = Utils.createAI(false, board);
 
     switch (mode) {
       case PvAI: {
         btnRetract.setDisable(false);
 
-        Random ran = new Random();
-        if (ran.nextInt(2) % 2 == 0) {
-          ai1 = tempAiBlack;
+        if (Math.random() >= 0.5) {
+          ai1 = aiBlack;
           ai1Color = -1;
           playerBlack = ai1.getName();
           playerWhite = "Human";
@@ -363,7 +309,7 @@ public class Gomoku extends Application {
 
           letAiMove(ai1, ai1Color);
         } else {
-          ai1 = tempAiWhite;
+          ai1 = aiWhite;
           ai1Color = 1;
           playerBlack = "Human";
           playerWhite = ai1.getName();
@@ -377,33 +323,27 @@ public class Gomoku extends Application {
         break;
       }
       case AIvAI: {
-        if (Configuration.isAIvAISilently) {
+        if (Configuration.aiTrainingMode) {
           btnSave.setDisable(true);
-          lblTxt.setText("AIvAI in background silently...");
+          lblTxt.setText("AIvAI silently in background...");
 
           for (int i = 0; i < Configuration.threadPoolLimit; i++) {
             Board tempBoard = new Board();
-            int tempAi1Color = -1;
-            int tempAi2Color = 1;
-            AiMove tempAi1 = new AI_Guardian();
-            tempAi1.setColor(tempAi1Color);
-            tempAi1.setPieceQuery(tempBoard);
+            AiMove tempAiBlack = Utils.createAI(true, board);
+            AiMove tempAiWhite = Utils.createAI(false, board);
 
-            AiMove tempAi2 = new AI_Guardian();
-            tempAi2.setColor(tempAi2Color);
-            tempAi2.setPieceQuery(tempBoard);
             endThread = false;
             fixedThreadPool.execute(() -> {
               int tempColor = -1;
               while (!endThread) {
                 AiMove ai;
                 int aiColor;
-                if (tempAi1Color == tempColor) {
-                  ai = tempAi1;
-                  aiColor = tempAi1Color;
+                if (tempColor == -1) {
+                  ai = tempAiBlack;
+                  aiColor = -1;
                 } else {
-                  ai = tempAi2;
-                  aiColor = tempAi2Color;
+                  ai = tempAiWhite;
+                  aiColor = 1;
                 }
 
                 Piece aiMove = null;
@@ -435,9 +375,9 @@ public class Gomoku extends Application {
                 GameState checkRusult = Referee.checkIfGameEnds(tempBoard, aiMove);
                 if (checkRusult != NOT_END) {
                   fixedThreadPool.execute(() ->
-                          tempAi1.gameEnds(checkRusult));
+                          tempAiBlack.gameEnds(checkRusult));
                   fixedThreadPool.execute(() ->
-                          tempAi2.gameEnds(checkRusult));
+                          tempAiWhite.gameEnds(checkRusult));
                   System.out.println(checkRusult);
                   return;
                 }
@@ -449,22 +389,21 @@ public class Gomoku extends Application {
             });
           }
         } else {
-          Random ran = new Random();
-          if (ran.nextInt(2) % 2 == 0) {
-            ai1 = tempAiWhite;
+          if (Math.random() >= 0.5) {
+            ai1 = aiWhite;
             ai1Color = 1;
             playerWhite = ai1.getName();
 
-            ai2 = tempAiBlack;
+            ai2 = aiBlack;
             ai2Color = -1;
             playerBlack = ai2.getName();
 
           } else {
-            ai1 = tempAiBlack;
+            ai1 = aiBlack;
             ai1Color = -1;
             playerBlack = ai1.getName();
 
-            ai2 = tempAiWhite;
+            ai2 = aiWhite;
             ai2Color = 1;
             playerWhite = ai2.getName();
           }
@@ -508,7 +447,6 @@ public class Gomoku extends Application {
     terminateThread();
 
     if (clearPieces) {
-      board.clearPieces();
       boardUI.clearPieces();
       lblTxt.setText("");
       btnSave.setDisable(true);
@@ -660,7 +598,7 @@ public class Gomoku extends Application {
                     boardUI.drawPiece(tempPi, true);
                     GameState checkResult = Referee.checkIfGameEnds(board, tempPi);
                     if (checkResult != NOT_END) {
-                      playWinningAnimation(checkResult);
+                      boardUI.playWinningAnimation(checkResult);
                     }
                   });
                 } else {

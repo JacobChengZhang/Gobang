@@ -5,11 +5,17 @@ import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
+import javafx.scene.text.Font;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import Gomoku.Referee.*;
+import static Gomoku.Referee.GameState.*;
 import static Gomoku.Utils.calcPieceCoordinate;
+
 
 /**
  * control the boardUI elements with Gomoku class collaboratively
@@ -29,6 +35,7 @@ class BoardUI {
   private int order;
   private Board board = null;
   private ObservableList<Node> paneBoardChildren = null;
+
 
   private BoardUI() {
   }
@@ -97,6 +104,31 @@ class BoardUI {
     }
   }
 
+  void playWinningAnimation(GameState ending) {
+    //TODO turn static Text into really animation...
+    if (ending == DRAW) { // draw
+      Text txt = new Text(Gomoku.paneWidth / 3, Gomoku.paneBoardHeight / 2, "Draw!");
+      txt.setFill(Color.RED);
+      txt.setFont(new Font("Courier", 6 * Configuration.pieceRadius));
+      txt.setTextAlignment(TextAlignment.CENTER);
+      paneBoardChildren.add(txt);
+      boardUI.winAnimation = txt;
+    } else {
+      Piece pi1 = board.getWinningPiece(1);
+      Piece pi2 = board.getWinningPiece(2);
+      if (pi1 != null && pi2 != null) {
+        Line winningLine = new Line(Utils.calcPieceCoordinate(pi1.getX()), Utils.calcPieceCoordinate(pi1.getY()), Utils.calcPieceCoordinate(pi2.getX()), Utils.calcPieceCoordinate(pi2.getY()));
+        winningLine.setStroke(Color.RED);
+        winningLine.setStrokeWidth(Configuration.pieceRadius / 3);
+        paneBoardChildren.add(winningLine);
+        boardUI.winAnimation = winningLine;
+      } else {
+        //System.err.println("Caught a bug and failed to fetch winning Piece");
+        //System.exit(1);
+      }
+    }
+  }
+
   void clearAll() {
     if (paneBoardChildren != null) {
       paneBoardChildren.clear();
@@ -123,6 +155,7 @@ class BoardUI {
       paneBoardChildren.remove(winAnimation);
     }
 
+    board.clearPieces();
     pieceList.clear();
     redDot = null;
     winAnimation = null;

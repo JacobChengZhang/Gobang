@@ -7,6 +7,7 @@ public class Piece {
   private final int color;
   private final boolean madeByAI;
 
+
   Piece(int x, int y, int color) {
     this.x = x;
     this.y = y;

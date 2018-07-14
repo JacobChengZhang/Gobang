@@ -11,15 +11,17 @@ public class Configuration {
   static final int aiThreadCycle = 300;
   static final int loadThreadCycle = 500;
 
+  // Notice that, these two are the class name of AI.
+  // Do not change them if you don't know what you are doingß.
   static final String aiBlack = "AI.AI_Guardian";
   static final String aiWhite = "AI.AI_Guardian";
 
   // max number of failed attempts that AI can make
-  static final int maxAttempts = 10;
+  static final int maxAttempts = 3;
 
-  // TODO add a calculating time limit for AI
+  // TODO add a time limit for AI computing
 
-  static final boolean isAIvAISilently = false;
+  static final boolean aiTrainingMode = false;
   static final boolean isManualLoad = true;
 
   static final int minOrder = 11;

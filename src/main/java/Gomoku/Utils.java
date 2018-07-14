@@ -2,9 +2,11 @@ package Gomoku;
 
 import javafx.application.Platform;
 
+import java.lang.reflect.Constructor;
 import java.util.concurrent.CountDownLatch;
 
 import Gomoku.Configuration.*;
+
 
 public class Utils {
 
@@ -64,6 +66,30 @@ public class Utils {
     }
 
     return validX && validY;
+  }
+
+  static AiMove createAI(boolean black, PieceQuery board) {
+    try {
+      if (black) {
+        Class<?> clsB = Class.forName(Configuration.aiBlack);
+        Constructor<?> consB = clsB.getConstructor();
+        AiMove aiBlack = (AiMove)consB.newInstance();
+        aiBlack.setColor(-1);
+        aiBlack.setPieceQuery(board);
+        return aiBlack;
+      } else {
+        Class<?> clsW = Class.forName(Configuration.aiWhite);
+        Constructor<?> consW = clsW.getConstructor();
+        AiMove aiWhite = (AiMove)consW.newInstance();
+        aiWhite.setColor(1);
+        aiWhite.setPieceQuery(board);
+        return aiWhite;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+      System.exit(1);
+      return null;
+    }
   }
 
   public static Mode getMode() {
